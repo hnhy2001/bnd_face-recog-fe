@@ -47,6 +47,16 @@ export default function Home() {
               alt="Vercel logomark"
               width={16}
               height={16}
+              
+            />
+
+            <Image
+              src="/vercel.svg"
+              alt="Vercel Logo"
+              width={16}
+              height={16}
+              className="h-auto w-full" // Thêm h-auto để giữ tỷ lệ ảnh
+              priority
             />
             Deploy Now
           </a>
