@@ -7,17 +7,61 @@ import Link from "next/link";
 import {
   LayoutDashboard, Users, Network, CalendarClock, Handshake,
   ClipboardList, FileText, RefreshCcw, Calendar,
-  UserCircle, Banknote, BrainCircuit, Wifi, LogOut, Menu, X, Camera, MoreHorizontal, Contact
+  UserCircle, Banknote, BrainCircuit, Wifi, LogOut, X, Camera, MoreHorizontal, Contact
 } from "lucide-react";
+
+// ============================================================
+// Icon SVG nội tuyến cho 2 theme (Đen Trắng & Xanh Y Tế)
+// ============================================================
+const MonoIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <circle cx="7" cy="7" r="6" fill="black" stroke="black" strokeWidth="1" />
+    <circle cx="7" cy="7" r="6" fill="white" clipPath="inset(0 50% 0 0)" />
+  </svg>
+);
+
+const BlueIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <circle cx="7" cy="7" r="6" fill="#0077B6" />
+    <path d="M7 4v6M4.5 6.5l2.5-2.5 2.5 2.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+type ThemeColor = "mono" | "blue";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [role, setRole] = useState<string>("user");
   const [name, setName] = useState<string>("Đang tải...");
-
-  // Trạng thái cho Mobile Menu (khi ấn nút thứ 5 ở dưới đáy)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // ---- THEME STATE ----
+  const [theme, setTheme] = useState<ThemeColor>("mono");
+  const [isThemePickerOpen, setIsThemePickerOpen] = useState(false);
+
+  // Áp dụng theme class lên <html>
+  useEffect(() => {
+    const saved = (localStorage.getItem("hrm_theme") as ThemeColor) || "mono";
+    setTheme(saved);
+    applyTheme(saved);
+  }, []);
+
+  const applyTheme = (t: ThemeColor) => {
+    const html = document.documentElement;
+    if (t === "blue") {
+      html.classList.add("theme-blue");
+    } else {
+      html.classList.remove("theme-blue");
+    }
+  };
+
+  const handleThemeChange = (t: ThemeColor) => {
+    setTheme(t);
+    localStorage.setItem("hrm_theme", t);
+    applyTheme(t);
+    setIsThemePickerOpen(false);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("hrm_token");
@@ -33,7 +77,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setName(storedName);
   }, [router]);
 
-  // Tự động đóng Mobile Menu khi chuyển trang
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
@@ -45,7 +88,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
-  // FULL MENU ITEMS (Đã bổ sung các thiết bị Camera và loại bỏ màu sắc để chuẩn B&W Editorial)
   const menuItems = [
     { id: "nav-dashboard", label: "TỔNG QUAN", href: "/dashboard", icon: LayoutDashboard, roles: ["admin", "manager", "user"] },
     { id: "nav-departments", label: "SƠ ĐỒ TỔ CHỨC", href: "/departments", icon: Network, roles: ["admin"] },
@@ -66,7 +108,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { id: "nav-wifi", label: "CẤU HÌNH WIFI", href: "/wifi", icon: Wifi, roles: ["admin"] },
   ];
 
-  // Các nút xuất hiện ở Bottom Tab Bar (Mobile)
   const bottomNavItems = [
     { id: "bottom-1", label: "TỔNG QUAN", href: "/dashboard", icon: LayoutDashboard },
     { id: "bottom-2", label: "NHẬT KÝ", href: "/attendance", icon: ClipboardList },
@@ -74,26 +115,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { id: "bottom-4", label: "PHÂN CÔNG", href: "/assignments", icon: Handshake },
   ];
 
+  // Cấu hình 2 theme để hiển thị trong picker
+  const themes: { key: ThemeColor; label: string; sublabel: string; bg: string; dot: string }[] = [
+    {
+      key: "mono",
+      label: "ĐEN TRẮNG",
+      sublabel: "Editorial Classic",
+      bg: "bg-slate-50 border-slate-900",
+      dot: "bg-slate-900",
+    },
+    {
+      key: "blue",
+      label: "XANH Y TẾ",
+      sublabel: "Medical Blue",
+      bg: "bg-blue-50 border-[#0077B6]",
+      dot: "bg-[#0077B6]",
+    },
+  ];
+
   return (
-    <div className="flex min-h-screen bg-[#fafafa] text-slate-900 w-full">
+    <div className="flex min-h-screen bg-background text-foreground w-full">
 
       {/* ==========================================
-          SIDEBAR DESKTOP (Ẩn trên màn hình nhỏ)
+          SIDEBAR DESKTOP
           ========================================== */}
-      <aside className="hidden md:flex w-64 border-r border-slate-200 bg-white flex-col sticky top-0 h-screen z-50 flex-shrink-0">
-        <div className="h-16 px-6 border-b border-slate-200 flex items-center justify-between shrink-0">
-          <span className="font-black tracking-tighter text-xl uppercase text-slate-900">BND HRM</span>
+      <aside className="hidden md:flex w-64 border-r border-border bg-card flex-col sticky top-0 h-screen z-50 flex-shrink-0">
+        <div className="h-16 px-6 border-b border-border flex items-center justify-between shrink-0">
+          <span className="font-black tracking-tighter text-xl uppercase text-foreground">BND HRM</span>
         </div>
 
         <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto">
           {menuItems.map((item) => {
             if (!item.roles.includes(role)) return null;
             const isActive = pathname === item.href;
-
             return (
               <Link key={item.id} href={item.href} className={`
                 flex items-center gap-3 p-3 rounded-xl transition-all
-                ${isActive ? "bg-black text-white" : "hover:bg-slate-100 text-slate-600"}
+                ${isActive ? "bg-primary text-primary-foreground" : "hover:bg-secondary text-muted-foreground hover:text-foreground"}
               `}>
                 <item.icon size={16} />
                 <span className="text-[11px] font-bold uppercase tracking-widest">{item.label}</span>
@@ -102,8 +160,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-200 mt-auto bg-white shrink-0">
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 text-slate-500 hover:bg-slate-100 hover:text-slate-900 rounded-xl transition-all">
+        {/* Nút đổi theme trong Sidebar */}
+        <div className="px-4 pb-2 pt-3 border-t border-border shrink-0">
+          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 pl-1">Giao diện màu sắc</p>
+          <div className="flex gap-2">
+            {themes.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => handleThemeChange(t.key)}
+                title={t.label}
+                className={`
+                  flex-1 flex items-center gap-2 p-2 rounded-lg border-2 transition-all
+                  ${theme === t.key ? t.bg + " shadow-sm" : "border-transparent bg-secondary hover:border-border"}
+                `}
+              >
+                <span className={`w-3 h-3 rounded-full shrink-0 ${t.dot}`} />
+                <span className="text-[9px] font-black uppercase tracking-widest leading-tight text-foreground">
+                  {t.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-border bg-card shrink-0">
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 text-muted-foreground hover:bg-secondary hover:text-foreground rounded-xl transition-all">
             <LogOut size={16} />
             <span className="text-[11px] font-bold uppercase tracking-widest">Đăng xuất</span>
           </button>
@@ -111,97 +192,160 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ==========================================
-          MAIN CONTENT AREA
+          MAIN CONTENT
           ========================================== */}
-      {/* Padding bottom 20 để nội dung không bị che bởi Bottom Nav trên Mobile */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[#fafafa] pb-20 md:pb-0">
+      <main className="flex-1 flex flex-col min-w-0 bg-background pb-20 md:pb-0">
 
-        {/* Header Chung */}
-        <header className="h-16 border-b border-slate-200 bg-white sticky top-0 z-30 flex items-center px-4 md:px-8 justify-between w-full">
+        <header className="h-16 border-b border-border bg-card sticky top-0 z-30 flex items-center px-4 md:px-8 justify-between w-full">
           <div className="flex items-center gap-4">
-            <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+            <h2 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
               {menuItems.find(m => m.href === pathname)?.label || "Trang chủ"}
             </h2>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Xin chào,</p>
-              <p className="text-[12px] font-bold text-slate-900 uppercase">{name}</p>
+            {/* Nút đổi theme nhanh trên Header (Mobile & Desktop) */}
+            <div className="relative">
+              <button
+                onClick={() => setIsThemePickerOpen(!isThemePickerOpen)}
+                title="Đổi giao diện màu sắc"
+                className={`
+                  flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 transition-all text-[9px] font-black uppercase tracking-widest
+                  ${theme === "blue"
+                    ? "border-[#0077B6] bg-blue-50 text-[#0077B6]"
+                    : "border-foreground bg-secondary text-foreground"}
+                `}
+              >
+                {theme === "blue" ? <BlueIcon /> : <MonoIcon />}
+                <span className="hidden sm:inline">{theme === "blue" ? "XANH Y TẾ" : "ĐEN TRẮNG"}</span>
+              </button>
+
+              {/* Dropdown Picker */}
+              {isThemePickerOpen && (
+                <div className="absolute right-0 top-10 w-52 bg-card border border-border rounded-2xl shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-150">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-2 pt-1 pb-2">
+                    Chọn giao diện
+                  </p>
+                  {themes.map((t) => (
+                    <button
+                      key={t.key}
+                      onClick={() => handleThemeChange(t.key)}
+                      className={`
+                        w-full flex items-center gap-3 p-3 rounded-xl mb-1 transition-all border-2
+                        ${theme === t.key ? t.bg + " shadow-sm" : "border-transparent hover:bg-secondary"}
+                      `}
+                    >
+                      <span className={`w-4 h-4 rounded-full shrink-0 ${t.dot}`} />
+                      <div className="text-left">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-foreground">{t.label}</p>
+                        <p className="text-[9px] text-muted-foreground">{t.sublabel}</p>
+                      </div>
+                      {theme === t.key && (
+                        <span className="ml-auto text-[10px] font-black text-primary">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="h-9 w-9 rounded-full bg-black flex items-center justify-center text-white font-black text-[12px] uppercase">
+
+            <div className="text-right hidden sm:block">
+              <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Xin chào,</p>
+              <p className="text-[12px] font-bold text-foreground uppercase">{name}</p>
+            </div>
+            <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-black text-[12px] uppercase">
               {name.charAt(0)}
             </div>
           </div>
         </header>
 
-        {/* Dynamic Content */}
+        {/* Đóng dropdown khi click ra ngoài */}
+        {isThemePickerOpen && (
+          <div className="fixed inset-0 z-40" onClick={() => setIsThemePickerOpen(false)} />
+        )}
+
         <div className="p-4 sm:p-6 lg:p-8 w-full animate-in fade-in duration-500">
           {children}
         </div>
       </main>
 
       {/* ==========================================
-          BOTTOM NAVIGATION BAR (Chỉ Mobile/Tablet)
+          BOTTOM NAVIGATION BAR (Mobile)
           ========================================== */}
-      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 z-50 flex justify-between items-center px-2 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.03)] h-16">
-
-        {/* 4 Nút chính */}
+      <div className="md:hidden fixed bottom-0 left-0 w-full bg-card border-t border-border z-50 flex justify-between items-center px-2 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.03)] h-16">
         {bottomNavItems.map((item) => {
           const isActive = pathname === item.href && !isMobileMenuOpen;
           return (
             <Link key={item.id} href={item.href} className="flex flex-col items-center justify-center w-1/5 py-2">
-              <div className={`p-1.5 rounded-lg transition-colors ${isActive ? "bg-black text-white" : "text-slate-400"}`}>
+              <div className={`p-1.5 rounded-lg transition-colors ${isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
                 <item.icon size={20} />
               </div>
-              <span className={`text-[9px] font-black uppercase tracking-widest mt-1 ${isActive ? "text-slate-900" : "text-slate-400"}`}>
+              <span className={`text-[9px] font-black uppercase tracking-widest mt-1 ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
                 {item.label}
               </span>
             </Link>
           );
         })}
 
-        {/* Nút MENU Thứ 5 */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="flex flex-col items-center justify-center w-1/5 py-2"
         >
-          <div className={`p-1.5 rounded-lg transition-colors ${isMobileMenuOpen ? "bg-black text-white" : "text-slate-400"}`}>
+          <div className={`p-1.5 rounded-lg transition-colors ${isMobileMenuOpen ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
             {isMobileMenuOpen ? <X size={20} /> : <MoreHorizontal size={20} />}
           </div>
-          <span className={`text-[9px] font-black uppercase tracking-widest mt-1 ${isMobileMenuOpen ? "text-slate-900" : "text-slate-400"}`}>
+          <span className={`text-[9px] font-black uppercase tracking-widest mt-1 ${isMobileMenuOpen ? "text-foreground" : "text-muted-foreground"}`}>
             MENU
           </span>
         </button>
       </div>
 
       {/* ==========================================
-          MOBILE MENU OVERLAY (Mở lên khi bấm nút MENU)
+          MOBILE MENU OVERLAY
           ========================================== */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-16 bottom-16 bg-[#fafafa] z-40 overflow-y-auto animate-in slide-in-from-bottom-4 duration-200">
+        <div className="md:hidden fixed inset-0 top-16 bottom-16 bg-background z-40 overflow-y-auto animate-in slide-in-from-bottom-4 duration-200">
           <div className="p-4 flex flex-col gap-2">
-            <h3 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 pl-3">TẤT CẢ TÍNH NĂNG</h3>
+            <h3 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 pl-3">TẤT CẢ TÍNH NĂNG</h3>
             {menuItems.map((item) => {
               if (!item.roles.includes(role)) return null;
               const isActive = pathname === item.href;
-
               return (
                 <Link key={item.id} href={item.href} className={`
                   flex items-center gap-4 p-4 rounded-xl transition-all border
-                  ${isActive ? "bg-white border-black shadow-sm" : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"}
+                  ${isActive ? "bg-card border-primary shadow-sm" : "bg-card border-border text-muted-foreground hover:border-primary/30"}
                 `}>
-                  <div className={`${isActive ? "text-black" : "text-slate-400"}`}>
+                  <div className={`${isActive ? "text-primary" : "text-muted-foreground"}`}>
                     <item.icon size={20} />
                   </div>
-                  <span className={`text-[11px] font-bold uppercase tracking-widest ${isActive && "text-black"}`}>
+                  <span className={`text-[11px] font-bold uppercase tracking-widest ${isActive ? "text-foreground" : ""}`}>
                     {item.label}
                   </span>
                 </Link>
               );
             })}
 
-            <button onClick={handleLogout} className="mt-4 flex items-center justify-center gap-3 p-4 bg-white border border-slate-200 text-slate-900 rounded-xl hover:bg-slate-100 transition-all">
+            {/* Đổi theme ngay trong Mobile Menu */}
+            <div className="mt-4 p-4 bg-card border border-border rounded-xl">
+              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-3">Giao diện màu sắc</p>
+              <div className="flex gap-2">
+                {themes.map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => handleThemeChange(t.key)}
+                    className={`
+                      flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all
+                      ${theme === t.key ? t.bg + " shadow-sm" : "border-transparent bg-secondary"}
+                    `}
+                  >
+                    <span className={`w-3 h-3 rounded-full ${t.dot}`} />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-foreground">{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={handleLogout} className="mt-2 flex items-center justify-center gap-3 p-4 bg-card border border-border text-foreground rounded-xl hover:bg-secondary transition-all">
               <LogOut size={18} />
               <span className="text-[11px] font-black uppercase tracking-widest">Đăng xuất hệ thống</span>
             </button>

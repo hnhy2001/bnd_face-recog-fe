@@ -56,56 +56,42 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ============================================
+   🖤 THEME MẶC ĐỊNH: ĐEN TRẮNG (MONOCHROME)
+   ============================================ */
 :root {
   --background: oklch(1 0 0);
-  /* Trắng tinh */
   --foreground: oklch(0.145 0 0);
-  /* Đen than chì (Slate 900) */
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
 
-  /* ⬛ KHỐI MÀU TRẮNG ĐEN (BLACK & WHITE) DÀNH CHO LIGHT MODE */
   --primary: oklch(0.145 0 0);
-  /* --primary: oklch(0.546 0.245 262.881); */
-  /* Đen than chì sang trọng, thay vì xanh dương */
   --primary-foreground: oklch(0.985 0 0);
-  /* Chữ trắng sắc nét */
 
   --secondary: oklch(0.97 0 0);
-  /* Xám nhạt (Slate 50) */
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  /* Giữ lại màu Đỏ cho các nút Cảnh báo/Xóa */
   --border: oklch(0.922 0 0);
-  /* Xám viền (Slate 200) */
   --input: oklch(0.922 0 0);
-  /* --ring: oklch(0.145 0 0); */
   --ring: oklch(0.546 0.245 262.881);
-  /* Viền Focus màu Đen */
 
   --chart-1: oklch(0.145 0 0);
-  /* Đen */
   --chart-2: oklch(0.556 0 0);
-  /* Xám trung */
   --chart-3: oklch(0.87 0 0);
-  /* Xám nhạt */
   --chart-4: oklch(0.371 0 0);
-  /* Xám đậm */
   --chart-5: oklch(0.708 0 0);
-  /* Bạc */
 
   --radius: 0.625rem;
 
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.145 0 0);
-  /* Sidebar màu Đen */
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
@@ -113,21 +99,66 @@
   --sidebar-ring: oklch(0.145 0 0);
 }
 
+/* ============================================
+   🩵 THEME Y TẾ: XANH BỆNH VIỆN (MEDICAL BLUE)
+   Ghi đè lên :root khi có class .theme-blue
+   ============================================ */
+.theme-blue {
+  /* Xanh y tế chính: #0077B6 */
+  --primary: oklch(0.515 0.178 240);
+  --primary-foreground: oklch(0.985 0 0);
+
+  /* Nền xanh rất nhạt */
+  --background: oklch(0.985 0.008 240);
+  --foreground: oklch(0.15 0.02 240);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.02 240);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.02 240);
+
+  /* Secondary / Muted: xanh nhạt */
+  --secondary: oklch(0.94 0.025 240);
+  --secondary-foreground: oklch(0.25 0.05 240);
+  --muted: oklch(0.94 0.025 240);
+  --muted-foreground: oklch(0.52 0.06 240);
+  --accent: oklch(0.92 0.04 240);
+  --accent-foreground: oklch(0.25 0.05 240);
+
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.88 0.03 240);
+  --input: oklch(0.88 0.03 240);
+  --ring: oklch(0.515 0.178 240);
+
+  --chart-1: oklch(0.515 0.178 240);
+  --chart-2: oklch(0.65 0.13 195);
+  --chart-3: oklch(0.78 0.08 210);
+  --chart-4: oklch(0.38 0.1 250);
+  --chart-5: oklch(0.82 0.05 230);
+
+  --sidebar: oklch(0.975 0.015 240);
+  --sidebar-foreground: oklch(0.15 0.02 240);
+  --sidebar-primary: oklch(0.515 0.178 240);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.92 0.04 240);
+  --sidebar-accent-foreground: oklch(0.25 0.05 240);
+  --sidebar-border: oklch(0.88 0.03 240);
+  --sidebar-ring: oklch(0.515 0.178 240);
+}
+
+/* ============================================
+   DARK MODE — kết hợp với cả 2 theme
+   ============================================ */
 .dark {
   --background: oklch(0.145 0 0);
-  /* Nền Đen than chì */
   --foreground: oklch(0.985 0 0);
-  /* Chữ Trắng tinh */
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
 
-  /* ⬜ KHỐI MÀU TRẮNG ĐEN (BLACK & WHITE) DÀNH CHO DARK MODE */
   --primary: oklch(0.985 0 0);
-  /* Primary bây giờ là Trắng (Ngược lại với ban ngày) */
   --primary-foreground: oklch(0.145 0 0);
-  /* Chữ Đen trên nền thẻ Primary Trắng */
 
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -136,12 +167,9 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  /* Giữ nguyên Đỏ cảnh báo */
   --border: oklch(1 0 0 / 10%);
-  /* Viền mờ */
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.985 0 0);
-  /* Viền Focus màu Trắng */
 
   --chart-1: oklch(0.985 0 0);
   --chart-2: oklch(0.708 0 0);
@@ -157,6 +185,25 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.985 0 0);
+}
+
+.dark.theme-blue {
+  --primary: oklch(0.68 0.15 240);
+  --primary-foreground: oklch(0.1 0.02 240);
+  --background: oklch(0.12 0.02 240);
+  --foreground: oklch(0.94 0.02 240);
+  --card: oklch(0.18 0.025 240);
+  --card-foreground: oklch(0.94 0.02 240);
+  --secondary: oklch(0.22 0.03 240);
+  --secondary-foreground: oklch(0.94 0.02 240);
+  --muted: oklch(0.22 0.03 240);
+  --muted-foreground: oklch(0.65 0.08 240);
+  --accent: oklch(0.25 0.04 240);
+  --border: oklch(1 0 0 / 12%);
+  --ring: oklch(0.68 0.15 240);
+  --sidebar: oklch(0.18 0.025 240);
+  --sidebar-primary: oklch(0.68 0.15 240);
+  --sidebar-primary-foreground: oklch(0.1 0.02 240);
 }
 
 @layer base {
@@ -175,7 +222,6 @@
 
 @layer base {
 
-  /* Phong cách Typography trang trọng */
   h1,
   h2,
   h3,
@@ -183,7 +229,6 @@
     @apply tracking-tighter font-bold uppercase;
   }
 
-  /* Tùy chỉnh thanh cuộn (Scrollbar) tối giản */
   ::-webkit-scrollbar {
     width: 5px;
   }
@@ -198,23 +243,18 @@
 }
 
 @layer components {
-
-  /* Lớp "Mặt nạ" cho các Container chính */
   .hrm-container {
     @apply min-h-screen bg-[#fafafa] p-4 md:p-8;
   }
 
-  /* Card phong cách B&W sắc nét */
   .hrm-card {
     @apply bg-card border border-border shadow-sm rounded-xl transition-all duration-200;
   }
 
-  /* Hiệu ứng Input tập trung */
   .hrm-input {
     @apply transition-all duration-200 focus:ring-1 focus:ring-primary focus:border-primary;
   }
 
-  /* Sidebar/Navbar trang trọng */
   .glass-header {
     @apply sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md;
   }
