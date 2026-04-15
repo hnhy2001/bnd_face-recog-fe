@@ -83,14 +83,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const handleLogout = () => {
     if (confirm("Bạn có chắc chắn muốn đăng xuất?")) {
-      // Chỉ xóa các thông tin liên quan đến user/auth
       localStorage.removeItem("hrm_token");
       localStorage.removeItem("hrm_role");
       localStorage.removeItem("hrm_name");
       localStorage.removeItem("hrm_username");
-
-      // Tuyệt đối KHÔNG dùng localStorage.clear() ở đây nữa nhé
-
       router.push("/login");
     }
   };
@@ -122,36 +118,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { id: "bottom-4", label: "PHÂN CÔNG", href: "/assignments", icon: Handshake },
   ];
 
-  // Cấu hình 2 theme để hiển thị trong picker
   const themes: { key: ThemeColor; label: string; sublabel: string; bg: string; dot: string }[] = [
-    {
-      key: "mono",
-      label: "ĐEN TRẮNG",
-      sublabel: "Editorial Classic",
-      bg: "bg-slate-50 border-slate-900",
-      dot: "bg-slate-900",
-    },
-    {
-      key: "blue",
-      label: "XANH Y TẾ",
-      sublabel: "Medical Blue",
-      bg: "bg-blue-50 border-[#0077B6]",
-      dot: "bg-[#0077B6]",
-    },
+    { key: "mono", label: "ĐEN TRẮNG", sublabel: "Editorial Classic", bg: "bg-slate-50 border-slate-900", dot: "bg-slate-900" },
+    { key: "blue", label: "XANH Y TẾ", sublabel: "Medical Blue", bg: "bg-blue-50 border-[#0077B6]", dot: "bg-[#0077B6]" },
   ];
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground w-full">
+    // 1. FIX ROOT: Đổi thành h-screen (hoặc h-[100dvh]) và overflow-hidden để khóa toàn bộ trang.
+    <div className="flex h-screen h-[100dvh] bg-background text-foreground w-full overflow-hidden">
 
-      {/* ==========================================
-          SIDEBAR DESKTOP
-          ========================================== */}
-      <aside className="hidden md:flex w-64 border-r border-border bg-card flex-col sticky top-0 h-screen z-50 flex-shrink-0">
+      {/* SIDEBAR DESKTOP */}
+      <aside className="hidden md:flex w-64 border-r border-border bg-card flex-col flex-shrink-0 h-full">
         <div className="h-16 px-6 border-b border-border flex items-center justify-between shrink-0">
           <span className="font-black tracking-tighter text-xl uppercase text-foreground">BND HRM</span>
         </div>
 
-        <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto">
+        <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
           {menuItems.map((item) => {
             if (!item.roles.includes(role)) return null;
             const isActive = pathname === item.href;
@@ -178,9 +160,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ==========================================
           MAIN CONTENT
           ========================================== */}
-      <main className="flex-1 flex flex-col min-w-0 bg-background pb-20 md:pb-0">
+      {/* 2. FIX MAIN: Ép h-full và overflow-hidden để không bao giờ bị dãn ra ngoài */}
+      <main className="flex-1 flex flex-col min-w-0 bg-background h-full overflow-hidden relative pb-16 md:pb-0">
 
-        <header className="h-16 border-b border-border bg-card sticky top-0 z-30 flex items-center px-4 md:px-8 justify-between w-full">
+        {/* HEADER */}
+        <header className="h-16 border-b border-border bg-card flex items-center px-4 md:px-8 justify-between shrink-0 w-full relative z-30">
           <div className="flex items-center gap-4">
             <h2 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
               {menuItems.find(m => m.href === pathname)?.label || "Trang chủ"}
@@ -188,16 +172,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center gap-3">
-            {/* ✅ NÚT ĐỔI THEME TRÊN HEADER ĐÃ ĐƯỢC FIX LỖI Z-INDEX */}
             <div className="relative">
               <button
                 onClick={() => setIsThemePickerOpen(!isThemePickerOpen)}
                 title="Đổi giao diện màu sắc"
                 className={`
                   flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 transition-all text-[9px] font-black uppercase tracking-widest relative z-50
-                  ${theme === "blue"
-                    ? "border-[#0077B6] bg-blue-50 text-[#0077B6]"
-                    : "border-foreground bg-secondary text-foreground"}
+                  ${theme === "blue" ? "border-[#0077B6] bg-blue-50 text-[#0077B6]" : "border-foreground bg-secondary text-foreground"}
                 `}
               >
                 {theme === "blue" ? <BlueIcon /> : <MonoIcon />}
@@ -206,17 +187,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
               {isThemePickerOpen && (
                 <>
-                  {/* Lớp overlay vô hình chặn click bên ngoài (z-40) */}
-                  <div
-                    className="fixed inset-0 z-40 cursor-default"
-                    onClick={() => setIsThemePickerOpen(false)}
-                  />
-
-                  {/* Menu Dropdown (z-50 để nổi hẳn lên trên overlay) */}
+                  <div className="fixed inset-0 z-40 cursor-default" onClick={() => setIsThemePickerOpen(false)} />
                   <div className="absolute right-0 top-12 w-52 bg-card border border-border rounded-2xl shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-150">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-2 pt-1 pb-2">
-                      Chọn giao diện
-                    </p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-2 pt-1 pb-2">Chọn giao diện</p>
                     {themes.map((t) => (
                       <button
                         key={t.key}
@@ -231,9 +204,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           <p className="text-[10px] font-black uppercase tracking-widest text-foreground">{t.label}</p>
                           <p className="text-[9px] text-muted-foreground">{t.sublabel}</p>
                         </div>
-                        {theme === t.key && (
-                          <span className="ml-auto text-[10px] font-black text-primary">✓</span>
-                        )}
+                        {theme === t.key && <span className="ml-auto text-[10px] font-black text-primary">✓</span>}
                       </button>
                     ))}
                   </div>
@@ -245,21 +216,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none mb-1">Xin chào,</p>
               <p className="text-[12px] font-bold text-foreground uppercase">{name}</p>
             </div>
-            <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-black text-[12px] uppercase">
+            <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-black text-[12px] uppercase shrink-0">
               {name.charAt(0)}
             </div>
           </div>
         </header>
 
-        <div className="p-4 sm:p-6 lg:p-8 w-full animate-in fade-in duration-500">
+        {/* 3. FIX CHILDREN WRAPPER: Chuyển thành flex-1 overflow-y-auto. 
+             Đây chính là phần bọc các file page.tsx. */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto w-full p-4 sm:p-6 lg:p-8 animate-in fade-in duration-500 custom-scrollbar relative z-10">
           {children}
         </div>
       </main>
 
-      {/* ==========================================
-          BOTTOM NAVIGATION BAR (Mobile)
-          ========================================== */}
-      <div className="md:hidden fixed bottom-0 left-0 w-full bg-card border-t border-border z-50 flex justify-between items-center px-2 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.03)] h-16">
+      {/* BOTTOM NAVIGATION BAR (Mobile) */}
+      <div className="md:hidden fixed bottom-0 left-0 w-full bg-card border-t border-border z-50 flex justify-between items-center px-2 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.03)] h-16 shrink-0">
         {bottomNavItems.map((item) => {
           const isActive = pathname === item.href && !isMobileMenuOpen;
           return (
@@ -287,11 +258,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </button>
       </div>
 
-      {/* ==========================================
-          MOBILE MENU OVERLAY
-          ========================================== */}
+      {/* MOBILE MENU OVERLAY */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-16 bottom-16 bg-background z-40 overflow-y-auto animate-in slide-in-from-bottom-4 duration-200">
+        <div className="md:hidden fixed inset-0 top-16 bottom-16 bg-background z-40 overflow-y-auto custom-scrollbar animate-in slide-in-from-bottom-4 duration-200">
           <div className="p-4 flex flex-col gap-2">
             <h3 className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 pl-3">TẤT CẢ TÍNH NĂNG</h3>
             {menuItems.map((item) => {
