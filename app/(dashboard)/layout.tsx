@@ -161,7 +161,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           MAIN CONTENT
           ========================================== */}
       {/* 2. FIX MAIN: Ép h-full và overflow-hidden để không bao giờ bị dãn ra ngoài */}
-      <main className="flex-1 flex flex-col min-w-0 bg-background h-full overflow-hidden relative pb-16 md:pb-0">
+      <main className="flex-1 flex flex-col min-w-0 bg-background h-full overflow-hidden relative pb-18 md:pb-0">
 
         {/* HEADER */}
         <header className="h-16 border-b border-border bg-card flex items-center px-4 md:px-8 justify-between shrink-0 w-full relative z-30">
@@ -233,6 +233,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="md:hidden fixed bottom-0 left-0 w-full bg-card border-t border-border z-50 flex justify-between items-center px-2 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.03)] h-16 shrink-0">
         {bottomNavItems.map((item) => {
           const isActive = pathname === item.href && !isMobileMenuOpen;
+          const isSpecial = item.id === "bottom-3"; // Chọn nút QUÉT TB làm nút nổi bật
+
+          // Giao diện riêng cho nút nổi bật (QUÉT TB)
+          if (isSpecial) {
+            return (
+              <Link key={item.id} href={item.href} className="flex flex-col items-center justify-end w-1/5 h-full pb-[6px] relative">
+                <div className={`
+                  absolute -top-5 w-14 h-14 rounded-full border-[4px] border-card shadow-lg flex items-center justify-center transition-transform hover:scale-105 active:scale-95
+                  ${isActive ? "bg-primary text-primary-foreground scale-105" : "bg-foreground text-background"}
+                `}>
+                  <item.icon size={24} />
+                </div>
+                <span className={`text-[9px] font-black uppercase tracking-widest mt-auto ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                  {item.label}
+                </span>
+              </Link>
+            );
+          }
+
+          // Giao diện cho các nút bình thường
           return (
             <Link key={item.id} href={item.href} className="flex flex-col items-center justify-center w-1/5 py-2">
               <div className={`p-1.5 rounded-lg transition-colors ${isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
