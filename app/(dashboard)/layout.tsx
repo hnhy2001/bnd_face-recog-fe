@@ -60,7 +60,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setTheme(t);
     localStorage.setItem("hrm_theme", t);
     applyTheme(t);
-    setIsThemePickerOpen(false);
+    setIsThemePickerOpen(false); // Đóng menu sau khi chọn xong
   };
 
   useEffect(() => {
@@ -83,7 +83,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const handleLogout = () => {
     if (confirm("Bạn có chắc chắn muốn đăng xuất?")) {
-      localStorage.clear();
+      // Chỉ xóa các thông tin liên quan đến user/auth
+      localStorage.removeItem("hrm_token");
+      localStorage.removeItem("hrm_role");
+      localStorage.removeItem("hrm_name");
+      localStorage.removeItem("hrm_username");
+
+      // Tuyệt đối KHÔNG dùng localStorage.clear() ở đây nữa nhé
+
       router.push("/login");
     }
   };
@@ -160,29 +167,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        {/* Nút đổi theme trong Sidebar */}
-        <div className="px-4 pb-2 pt-3 border-t border-border shrink-0">
-          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 pl-1">Giao diện màu sắc</p>
-          <div className="flex gap-2">
-            {themes.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => handleThemeChange(t.key)}
-                title={t.label}
-                className={`
-                  flex-1 flex items-center gap-2 p-2 rounded-lg border-2 transition-all
-                  ${theme === t.key ? t.bg + " shadow-sm" : "border-transparent bg-secondary hover:border-border"}
-                `}
-              >
-                <span className={`w-3 h-3 rounded-full shrink-0 ${t.dot}`} />
-                <span className="text-[9px] font-black uppercase tracking-widest leading-tight text-foreground">
-                  {t.label}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="p-4 border-t border-border bg-card shrink-0">
           <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 text-muted-foreground hover:bg-secondary hover:text-foreground rounded-xl transition-all">
             <LogOut size={16} />
@@ -204,13 +188,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Nút đổi theme nhanh trên Header (Mobile & Desktop) */}
+            {/* ✅ NÚT ĐỔI THEME TRÊN HEADER ĐÃ ĐƯỢC FIX LỖI Z-INDEX */}
             <div className="relative">
               <button
                 onClick={() => setIsThemePickerOpen(!isThemePickerOpen)}
                 title="Đổi giao diện màu sắc"
                 className={`
-                  flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 transition-all text-[9px] font-black uppercase tracking-widest
+                  flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 transition-all text-[9px] font-black uppercase tracking-widest relative z-50
                   ${theme === "blue"
                     ? "border-[#0077B6] bg-blue-50 text-[#0077B6]"
                     : "border-foreground bg-secondary text-foreground"}
@@ -220,32 +204,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span className="hidden sm:inline">{theme === "blue" ? "XANH Y TẾ" : "ĐEN TRẮNG"}</span>
               </button>
 
-              {/* Dropdown Picker */}
               {isThemePickerOpen && (
-                <div className="absolute right-0 top-10 w-52 bg-card border border-border rounded-2xl shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-150">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-2 pt-1 pb-2">
-                    Chọn giao diện
-                  </p>
-                  {themes.map((t) => (
-                    <button
-                      key={t.key}
-                      onClick={() => handleThemeChange(t.key)}
-                      className={`
-                        w-full flex items-center gap-3 p-3 rounded-xl mb-1 transition-all border-2
-                        ${theme === t.key ? t.bg + " shadow-sm" : "border-transparent hover:bg-secondary"}
-                      `}
-                    >
-                      <span className={`w-4 h-4 rounded-full shrink-0 ${t.dot}`} />
-                      <div className="text-left">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-foreground">{t.label}</p>
-                        <p className="text-[9px] text-muted-foreground">{t.sublabel}</p>
-                      </div>
-                      {theme === t.key && (
-                        <span className="ml-auto text-[10px] font-black text-primary">✓</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  {/* Lớp overlay vô hình chặn click bên ngoài (z-40) */}
+                  <div
+                    className="fixed inset-0 z-40 cursor-default"
+                    onClick={() => setIsThemePickerOpen(false)}
+                  />
+
+                  {/* Menu Dropdown (z-50 để nổi hẳn lên trên overlay) */}
+                  <div className="absolute right-0 top-12 w-52 bg-card border border-border rounded-2xl shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-150">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-2 pt-1 pb-2">
+                      Chọn giao diện
+                    </p>
+                    {themes.map((t) => (
+                      <button
+                        key={t.key}
+                        onClick={() => handleThemeChange(t.key)}
+                        className={`
+                          w-full flex items-center gap-3 p-3 rounded-xl mb-1 transition-all border-2
+                          ${theme === t.key ? t.bg + " shadow-sm" : "border-transparent hover:bg-secondary"}
+                        `}
+                      >
+                        <span className={`w-4 h-4 rounded-full shrink-0 ${t.dot}`} />
+                        <div className="text-left">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-foreground">{t.label}</p>
+                          <p className="text-[9px] text-muted-foreground">{t.sublabel}</p>
+                        </div>
+                        {theme === t.key && (
+                          <span className="ml-auto text-[10px] font-black text-primary">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
 
@@ -258,11 +250,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
         </header>
-
-        {/* Đóng dropdown khi click ra ngoài */}
-        {isThemePickerOpen && (
-          <div className="fixed inset-0 z-40" onClick={() => setIsThemePickerOpen(false)} />
-        )}
 
         <div className="p-4 sm:p-6 lg:p-8 w-full animate-in fade-in duration-500">
           {children}
@@ -324,26 +311,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </Link>
               );
             })}
-
-            {/* Đổi theme ngay trong Mobile Menu */}
-            <div className="mt-4 p-4 bg-card border border-border rounded-xl">
-              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-3">Giao diện màu sắc</p>
-              <div className="flex gap-2">
-                {themes.map((t) => (
-                  <button
-                    key={t.key}
-                    onClick={() => handleThemeChange(t.key)}
-                    className={`
-                      flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all
-                      ${theme === t.key ? t.bg + " shadow-sm" : "border-transparent bg-secondary"}
-                    `}
-                  >
-                    <span className={`w-3 h-3 rounded-full ${t.dot}`} />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-foreground">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
 
             <button onClick={handleLogout} className="mt-2 flex items-center justify-center gap-3 p-4 bg-card border border-border text-foreground rounded-xl hover:bg-secondary transition-all">
               <LogOut size={18} />
