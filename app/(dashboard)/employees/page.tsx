@@ -602,17 +602,35 @@ export default function EmployeesPage() {
             {/* ==================================================== */}
             {/* SLIDE-OUT DRAWER (FORM THÊM/SỬA) */}
             {/* ==================================================== */}
-            {isPanelOpen && <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100]" onClick={handleClosePanel} />}
+            {isPanelOpen && (
+                <div
+                    className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] transition-opacity"
+                    onClick={handleClosePanel}
+                />
+            )}
 
-            <div className={`fixed top-0 right-0 bottom-0 w-full max-w-[500px] bg-card border-l border-border shadow-2xl z-[101] transform transition-transform duration-300 ease-in-out flex flex-col ${isPanelOpen ? "translate-x-0" : "translate-x-full"}`}>
-                <div className="flex items-center justify-between p-5 border-b border-border bg-muted/30">
+            <div
+                // [FIX LỖI MENU MOBILE ĐÈ NÚT]: Thêm `pb-20 md:pb-0`
+                // [FIX BORDER]: Chuyển border-l thành md:border-l
+                className={`fixed top-0 right-0 bottom-0 w-full max-w-[500px] bg-card md:border-l border-border shadow-2xl z-[101] transform transition-transform duration-300 ease-in-out flex flex-col pb-20 md:pb-0 ${isPanelOpen ? "translate-x-0" : "translate-x-full"}`}
+            >
+                {/* HEADER - Đã bỏ border-b và đổi nền bg-transparent */}
+                <div className="flex-shrink-0 flex items-center justify-between p-5 bg-transparent">
                     <div className="flex items-center gap-2">
                         {editingId ? <Edit2 className="w-5 h-5 text-primary" /> : <Plus className="w-5 h-5 text-primary" />}
-                        <h3 className="text-[13px] font-black uppercase tracking-widest text-foreground m-0">{editingId ? "Sửa Nhân Sự" : "Thêm Nhân Sự Mới"}</h3>
+                        <h3 className="text-[13px] font-black uppercase tracking-widest text-foreground m-0">
+                            {editingId ? "Sửa Nhân Sự" : "Thêm Nhân Sự Mới"}
+                        </h3>
                     </div>
-                    <button onClick={handleClosePanel} className="p-2 bg-background border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"><X size={16} /></button>
+                    <button
+                        onClick={handleClosePanel}
+                        className="p-2 bg-background border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                    >
+                        <X size={16} />
+                    </button>
                 </div>
 
+                {/* CONTENT */}
                 <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
                     <form id="drawerForm" onSubmit={handleSubmit} className="flex flex-col gap-5">
                         <div className="grid grid-cols-2 gap-4">
@@ -638,20 +656,50 @@ export default function EmployeesPage() {
                             </div>
 
                             {formData.departments.map((dept, index) => (
-                                <div key={dept.id} className="flex flex-wrap items-center gap-2 p-2 bg-background border border-border rounded-lg shadow-sm">
-                                    <select required value={dept.department_id} onChange={e => updateDeptRow(dept.id, 'department_id', e.target.value)} className="flex-1 min-w-[140px] h-9 px-2 text-[11px] border border-border rounded bg-background text-foreground outline-none focus:border-primary">
+                                <div key={dept.id} className="flex flex-col sm:flex-row gap-2 p-2 bg-background border border-border rounded-lg shadow-sm">
+                                    {/* NỬA TRÁI (Trên mobile sẽ nằm ở dòng 1 và tự kéo giãn 100%) */}
+                                    <select
+                                        required
+                                        value={dept.department_id}
+                                        onChange={e => updateDeptRow(dept.id, 'department_id', e.target.value)}
+                                        className="w-full sm:flex-1 h-9 px-2 text-[11px] border border-border rounded bg-background text-foreground outline-none focus:border-primary"
+                                    >
                                         <option value="">-- Chọn đơn vị --</option>
                                         {departments.map(d => <option key={d.id} value={d.id}>{d.unit_name}</option>)}
                                     </select>
-                                    <select value={dept.role} onChange={e => updateDeptRow(dept.id, 'role', e.target.value)} className="w-[90px] h-9 px-2 text-[11px] border border-border rounded bg-background text-foreground outline-none focus:border-primary">
-                                        <option value="user">Nhân viên</option>
-                                        <option value="manager">Quản lý</option>
-                                        <option value="admin">Admin</option>
-                                    </select>
-                                    <label className="flex items-center gap-1 cursor-pointer text-[10px] font-bold text-muted-foreground w-[60px]">
-                                        <input type="radio" name="primary_dept" checked={dept.is_primary === 1} onChange={() => updateDeptRow(dept.id, 'is_primary', 1)} className="w-3 h-3 accent-primary" /> Chính
-                                    </label>
-                                    <button type="button" onClick={() => removeDeptRow(dept.id)} className="w-8 h-8 flex items-center justify-center bg-destructive/10 text-destructive border border-destructive/20 rounded hover:bg-destructive hover:text-white transition-colors"><X size={14} /></button>
+
+                                    {/* NỬA PHẢI (Trên mobile sẽ nằm ở dòng 2) */}
+                                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-between sm:justify-start">
+                                        <select
+                                            value={dept.role}
+                                            onChange={e => updateDeptRow(dept.id, 'role', e.target.value)}
+                                            className="flex-1 sm:w-[90px] h-9 px-2 text-[11px] border border-border rounded bg-background text-foreground outline-none focus:border-primary"
+                                        >
+                                            <option value="user">Nhân viên</option>
+                                            <option value="manager">Quản lý</option>
+                                            <option value="admin">Admin</option>
+                                        </select>
+
+                                        <label className="flex shrink-0 items-center gap-1.5 cursor-pointer text-[10px] font-bold text-muted-foreground ml-1">
+                                            <input
+                                                type="radio"
+                                                name="primary_dept"
+                                                checked={dept.is_primary === 1}
+                                                onChange={() => updateDeptRow(dept.id, 'is_primary', 1)}
+                                                className="w-3.5 h-3.5 accent-primary"
+                                            />
+                                            Chính
+                                        </label>
+
+                                        {/* Chỉnh lại h-9 w-9 cho nút xóa để nó cao bằng đúng cái ô Select bên cạnh */}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeDeptRow(dept.id)}
+                                            className="w-9 h-9 shrink-0 flex items-center justify-center bg-destructive/10 text-destructive border border-destructive/20 rounded hover:bg-destructive hover:text-white transition-colors ml-1"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -699,9 +747,14 @@ export default function EmployeesPage() {
                     </form>
                 </div>
 
-                <div className="p-5 border-t border-border bg-card flex gap-3">
-                    <button type="button" onClick={handleClosePanel} className="flex-1 h-11 bg-secondary text-foreground font-bold uppercase tracking-widest text-[11px] rounded-xl hover:bg-muted transition-colors border border-border">Hủy Bỏ</button>
-                    <button type="submit" form="drawerForm" className="flex-1 flex items-center justify-center gap-2 h-11 text-primary-foreground bg-primary hover:opacity-90 font-bold uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-md"><Save size={16} /> {editingId ? "Cập Nhật" : "Lưu Nhân Sự"}</button>
+                {/* FOOTER - Đã bỏ border-t và đổi nền bg-transparent */}
+                <div className="flex-shrink-0 p-5 bg-transparent flex gap-3">
+                    <button type="button" onClick={handleClosePanel} className="flex-1 h-11 bg-secondary text-foreground font-bold uppercase tracking-widest text-[11px] rounded-xl hover:bg-muted transition-colors border border-border">
+                        Hủy Bỏ
+                    </button>
+                    <button type="submit" form="drawerForm" className="flex-1 flex items-center justify-center gap-2 h-11 text-primary-foreground bg-primary hover:opacity-90 font-bold uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-md">
+                        <Save size={16} /> {editingId ? "Cập Nhật" : "Lưu Nhân Sự"}
+                    </button>
                 </div>
             </div>
 

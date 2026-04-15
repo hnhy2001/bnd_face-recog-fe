@@ -230,7 +230,7 @@ export default function DepartmentsPage() {
                             <div className="absolute top-[28px] -left-[13px] sm:-left-[17px] w-[20px] sm:w-[32px] border-t-2 border-dashed border-border/60" />
                         )}
 
-                        {/* Card hiển thị 1 đơn vị - Ép max-w-full và overflow-hidden */}
+                        {/* Card hiển thị 1 đơn vị */}
                         <div className={`
               flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-xl border transition-all relative z-10 w-full max-w-full overflow-hidden
               ${editingId === child.id
@@ -246,7 +246,6 @@ export default function DepartmentsPage() {
                                 </div>
 
                                 <div className="flex-1 min-w-0">
-                                    {/* Tên đơn vị tự động xuống dòng */}
                                     <h4 className="text-[12px] sm:text-sm font-bold text-foreground break-words whitespace-normal leading-tight">
                                         {child.unit_name}
                                     </h4>
@@ -296,10 +295,11 @@ export default function DepartmentsPage() {
     };
 
     return (
-        <div className="w-full pb-6 animate-in fade-in duration-500 relative">
+        // [FIX] ROOT: Ép flex-1 h-full min-h-0 để giãn khít layout, khóa hoàn toàn cuộn ở body
+        <div className="w-full flex-1 flex flex-col h-full min-h-0 animate-in fade-in duration-500 relative text-foreground">
 
-            {/* HEADER & CONTROLS */}
-            <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            {/* HEADER & CONTROLS (Ghim cứng) */}
+            <div className="flex-shrink-0 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 className="text-2xl font-black tracking-tighter uppercase text-foreground m-0">
                         Sơ Đồ Tổ Chức & Đơn Vị
@@ -328,16 +328,16 @@ export default function DepartmentsPage() {
             </div>
 
             {/* ==================================================== */}
-            {/* KHU VỰC HIỂN THỊ CÂY THƯ MỤC CHÍNH */}
+            {/* KHU VỰC HIỂN THỊ CÂY THƯ MỤC CHÍNH (Tự động co giãn và sinh Scrollbar) */}
             {/* ==================================================== */}
-            <div className="hrm-card p-3 sm:p-5 xl:p-8 w-full max-w-full overflow-hidden min-h-[500px]">
+            <div className="hrm-card flex-1 flex flex-col min-h-0 w-full max-w-full overflow-hidden bg-card border border-border rounded-xl shadow-sm">
                 {isLoading ? (
                     <div className="h-full py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
                         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                         <span className="text-[11px] font-bold uppercase tracking-widest mt-2">Đang tải dữ liệu phòng ban...</span>
                     </div>
                 ) : departments.length === 0 ? (
-                    <div className="h-full py-20 text-center text-muted-foreground flex flex-col items-center gap-3">
+                    <div className="h-full py-20 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
                         <AlertCircle className="w-12 h-12 opacity-20" />
                         <p className="text-[11px] font-bold uppercase tracking-widest">Chưa có đơn vị nào trong hệ thống.</p>
                         <button onClick={handleAddNew} className="text-primary text-[12px] font-bold hover:underline">
@@ -345,7 +345,8 @@ export default function DepartmentsPage() {
                         </button>
                     </div>
                 ) : (
-                    <div className="w-full max-w-full">
+                    // Vùng duy nhất được phép Scroll
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-5 xl:p-8 w-full max-w-full relative">
                         <DepartmentTree parentId={null} />
                     </div>
                 )}
@@ -363,10 +364,10 @@ export default function DepartmentsPage() {
             )}
 
             <div
-                className={`fixed top-0 right-0 bottom-0 w-full max-w-md bg-card border-l border-border shadow-[rgba(0,0,0,0.1)_0px_0px_50px] z-[101] transform transition-transform duration-300 ease-in-out flex flex-col ${isPanelOpen ? "translate-x-0" : "translate-x-full"
-                    }`}
+                // [FIX LỖI MENU MOBILE ĐÈ NÚT]: Thêm `pb-20 md:pb-0` để trên mobile tự động độn Form lên một đoạn cao qua khỏi thanh Mobile Menu
+                className={`fixed top-0 right-0 bottom-0 w-full max-w-md bg-card border-l border-border shadow-[rgba(0,0,0,0.1)_0px_0px_50px] z-[101] transform transition-transform duration-300 ease-in-out flex flex-col pb-20 md:pb-0 ${isPanelOpen ? "translate-x-0" : "translate-x-full"}`}
             >
-                <div className="flex items-center justify-between p-5 border-b border-border bg-muted/30">
+                <div className="flex-shrink-0 flex items-center justify-between p-5 bg-transparent">
                     <div className="flex items-center gap-2">
                         {editingId ? <Edit2 className="w-5 h-5 text-primary" /> : <Plus className="w-5 h-5 text-primary" />}
                         <h3 className="text-[13px] font-black uppercase tracking-widest text-foreground m-0">
@@ -383,7 +384,6 @@ export default function DepartmentsPage() {
 
                 <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
                     <form id="drawerForm" onSubmit={handleSubmit} className="flex flex-col gap-5">
-
                         <div>
                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">Mã Đơn Vị *</label>
                             <input
@@ -481,11 +481,10 @@ export default function DepartmentsPage() {
                                 className="hrm-input h-10 px-3 bg-background text-foreground rounded-lg border border-border text-[12px] w-full"
                             />
                         </div>
-
                     </form>
                 </div>
 
-                <div className="p-5 border-t border-border bg-card flex gap-3">
+                <div className="flex-shrink-0 p-5 bg-transparent flex gap-3">
                     <button
                         type="button"
                         onClick={handleClosePanel}
