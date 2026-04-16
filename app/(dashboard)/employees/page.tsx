@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api-client";
 import {
     Users, Search, Plus, FileDown, FileUp, FileSpreadsheet,
     MoreVertical, Edit2, Trash2, Key, Lock, Unlock, Camera,
@@ -69,7 +70,7 @@ export default function EmployeesPage() {
         const token = localStorage.getItem("hrm_token");
         if (!token) return;
         try {
-            const res = await fetch('/api/departments', { headers: { "Authorization": `Bearer ${token}` } });
+            const res = await fetch(`${API_BASE_URL}/api/departments`, { headers: { "Authorization": `Bearer ${token}` } });
             if (res.ok) setDepartments(await res.json());
         } catch (e) { console.error(e); }
     }, []);
@@ -79,7 +80,7 @@ export default function EmployeesPage() {
         if (!token) { router.push("/login"); return; }
 
         setIsLoading(true);
-        let url = `/api/employees?page=${page}&size=${pageSize}`;
+        let url = `${API_BASE_URL}/api/employees?page=${page}&size=${pageSize}`;
         if (keyword) url += `&search=${encodeURIComponent(keyword)}`;
         if (deptFilter) url += `&department_id=${deptFilter}`;
 
@@ -210,7 +211,7 @@ export default function EmployeesPage() {
             departments: finalDepts.map(d => ({ department_id: parseInt(d.department_id), role: d.role, is_primary: d.is_primary }))
         };
 
-        const url = editingId ? `/api/employees/${editingId}` : `/api/employees`;
+        const url = editingId ? `${API_BASE_URL}/api/employees/${editingId}` : `${API_BASE_URL}/api/employees`;
         try {
             const res = await fetch(url, {
                 method: editingId ? 'PUT' : 'POST',
@@ -265,9 +266,9 @@ export default function EmployeesPage() {
 
         if (action === 'delete') {
             if (confirm(`⚠️ XÓA VĨNH VIỄN nhân viên [${emp.username}]?`)) {
-                const res = await fetch(`/api/employees/${emp.username}`, { method: 'DELETE', headers });
+                const res = await fetch(`${API_BASE_URL}/api/employees/${emp.username}`, { method: 'DELETE', headers });
                 if (res.ok) {
-                    await fetch('/unregister', { method: 'POST', headers, body: JSON.stringify({ user_id: emp.username }) });
+                    await fetch(`${API_BASE_URL}/unregister`, { method: 'POST', headers, body: JSON.stringify({ user_id: emp.username }) });
                     fetchEmployees();
                 } else alert("Lỗi khi xóa!");
             }
@@ -275,13 +276,13 @@ export default function EmployeesPage() {
         else if (action === 'password') {
             const newPwd = prompt(`Nhập mật khẩu mới cho [${emp.username}]:`);
             if (newPwd && newPwd.trim()) {
-                const res = await fetch(`/api/employees/${emp.username}/password`, { method: 'PUT', headers, body: JSON.stringify({ new_password: newPwd.trim() }) });
+                const res = await fetch(`${API_BASE_URL}/api/employees/${emp.username}/password`, { method: 'PUT', headers, body: JSON.stringify({ new_password: newPwd.trim() }) });
                 if (res.ok) alert(`Đổi mật khẩu thành công!`);
             }
         }
         else if (action === 'lock') {
             if (confirm(`Thay đổi trạng thái khóa của [${emp.username}]?`)) {
-                const res = await fetch(`/api/employees/${emp.username}/toggle_lock`, { method: 'PUT', headers });
+                const res = await fetch(`${API_BASE_URL}/api/employees/${emp.username}/toggle_lock`, { method: 'PUT', headers });
                 if (res.ok) fetchEmployees();
             }
         }
@@ -303,7 +304,7 @@ export default function EmployeesPage() {
         const reader = new FileReader();
         reader.onloadend = async () => {
             try {
-                const res = await fetch('/register', {
+                const res = await fetch(`${API_BASE_URL}/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem("hrm_token")}` },
                     body: JSON.stringify({ user_id: uploadFaceUserId, image_base64: reader.result, full_image_base64: reader.result })
@@ -319,7 +320,7 @@ export default function EmployeesPage() {
 
     const deleteFace = async (username: string) => {
         if (confirm(`Xóa ảnh AI của ${username}? Nhân viên sẽ phải chụp lại.`)) {
-            await fetch('/unregister', {
+            await fetch(`${API_BASE_URL}/unregister`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem("hrm_token")}` },
                 body: JSON.stringify({ user_id: username })
@@ -332,7 +333,7 @@ export default function EmployeesPage() {
     // 6. EXCEL FUNCTIONS
     // ==========================================
     const handleExcelAction = async (action: 'export' | 'template') => {
-        const url = action === 'export' ? '/api/employees/export' : '/api/employees/export_template';
+        const url = action === 'export' ? `${API_BASE_URL}/api/employees/export` : `${API_BASE_URL}/api/employees/export_template`;
         const filename = action === 'export' ? 'DanhSachNhanSu.xlsx' : 'Mau_Nhap_Nhan_Su.xlsx';
         try {
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem("hrm_token")}` } });
@@ -350,7 +351,7 @@ export default function EmployeesPage() {
         const formData = new FormData();
         formData.append("file", e.target.files[0]);
         try {
-            const res = await fetch('/api/employees/import', {
+            const res = await fetch(`${API_BASE_URL}/api/employees/import`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem("hrm_token")}` },
                 body: formData

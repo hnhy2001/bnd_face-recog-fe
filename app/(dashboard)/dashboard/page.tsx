@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
+import { API_BASE_URL, getImageUrl } from "@/lib/api-client"
 import { Clock, Wifi, Search, Users, CheckCircle2, FileText, PenTool, X, ImageIcon, LayoutDashboard } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -55,7 +56,7 @@ export default function DashboardPage() {
         if (!token) return
 
         try {
-            const statsRes = await fetch('/api/stats', { headers: { "Authorization": `Bearer ${token}` } })
+            const statsRes = await fetch(`${API_BASE_URL}/api/stats`, { headers: { "Authorization": `Bearer ${token}` } })
             let employees = 0, leaves = 0
             if (statsRes.ok) {
                 const data = await statsRes.json()
@@ -64,7 +65,7 @@ export default function DashboardPage() {
             }
 
             let explanations = 0
-            const expRes = await fetch('/api/explanations?status=1&limit=1', { headers: { "Authorization": `Bearer ${token}` } })
+            const expRes = await fetch(`${API_BASE_URL}/api/explanations?status=1&limit=1`, { headers: { "Authorization": `Bearer ${token}` } })
             if (expRes.ok) {
                 const expData = await expRes.json()
                 explanations = expData.total || 0
@@ -87,7 +88,7 @@ export default function DashboardPage() {
         const todayStr = `${yyyy}-${mm}-${dd}`
 
         try {
-            const res = await fetch(`/api/monthly-records?startDate=${todayStr}&endDate=${todayStr}`, {
+            const res = await fetch(`${API_BASE_URL}/api/monthly-records?startDate=${todayStr}&endDate=${todayStr}`, {
                 headers: { "Authorization": `Bearer ${token}` }
             })
             if (!res.ok) {
@@ -510,7 +511,7 @@ export default function DashboardPage() {
                                                                     <div className="flex items-center gap-2">
                                                                         <span className="font-mono text-[10px] font-bold text-muted-foreground bg-background px-2 py-0.5 rounded border border-border">Vào: {cin}</span>
                                                                         {row.checkin_image_path && (
-                                                                            <button onClick={(e) => { e.stopPropagation(); setImageModal({ isOpen: true, src: row.checkin_image_path, title: `Ảnh vào: ${row.full_name}` }) }} className="text-muted-foreground hover:text-primary transition-colors">
+                                                                            <button onClick={(e) => { e.stopPropagation(); setImageModal({ isOpen: true, src: getImageUrl(row.checkin_image_path), title: `Ảnh vào: ${row.full_name}` }) }} className="text-muted-foreground hover:text-primary transition-colors">
                                                                                 <ImageIcon className="w-3.5 h-3.5" />
                                                                             </button>
                                                                         )}
@@ -518,7 +519,7 @@ export default function DashboardPage() {
                                                                     <div className="flex items-center gap-2">
                                                                         <span className="font-mono text-[10px] font-bold text-muted-foreground bg-background px-2 py-0.5 rounded border border-border">Ra: {cout}</span>
                                                                         {row.checkout_image_path && (
-                                                                            <button onClick={(e) => { e.stopPropagation(); setImageModal({ isOpen: true, src: row.checkout_image_path, title: `Ảnh ra: ${row.full_name}` }) }} className="text-muted-foreground hover:text-primary transition-colors">
+                                                                            <button onClick={(e) => { e.stopPropagation(); setImageModal({ isOpen: true, src: getImageUrl(row.checkout_image_path), title: `Ảnh ra: ${row.full_name}` }) }} className="text-muted-foreground hover:text-primary transition-colors">
                                                                                 <ImageIcon className="w-3.5 h-3.5" />
                                                                             </button>
                                                                         )}

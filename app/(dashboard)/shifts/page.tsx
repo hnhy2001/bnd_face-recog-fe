@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { API_BASE_URL } from "@/lib/api-client";
 import {
     Plus, Edit2, Trash2, X, Save, Clock, CalendarClock, Search,
     ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight // Thêm icon phân trang
@@ -56,7 +57,7 @@ export default function ShiftsPage() {
         setIsLoading(true);
         try {
             // [CẬP NHẬT] Truyền tham số phân trang vào API
-            const res = await fetch(`/api/shifts?page=${page}&size=${pageSize}`);
+            const res = await fetch(`${API_BASE_URL}/api/shifts?page=${page}&size=${pageSize}`);
             if (res.ok) {
                 const data = await res.json();
 
@@ -145,7 +146,7 @@ export default function ShiftsPage() {
             day_coefficient: formData.day_coefficient ? parseFloat(formData.day_coefficient) : null
         };
 
-        const url = editingCode ? `/api/shifts/${editingCode}` : `/api/shifts`;
+        const url = editingCode ? `${API_BASE_URL}/api/shifts/${editingCode}` : `${API_BASE_URL}/api/shifts`;
         const method = editingCode ? 'PUT' : 'POST';
 
         try {
@@ -171,7 +172,7 @@ export default function ShiftsPage() {
     const handleDelete = async (shift_code: string) => {
         if (confirm(`⚠️ Bạn có chắc chắn muốn xóa ca trực [${shift_code}] không?`)) {
             try {
-                const res = await fetch(`/api/shifts/${shift_code}`, { method: 'DELETE' });
+                const res = await fetch(`${API_BASE_URL}/api/shifts/${shift_code}`, { method: 'DELETE' });
                 if (res.ok) {
                     fetchShifts();
                 } else {

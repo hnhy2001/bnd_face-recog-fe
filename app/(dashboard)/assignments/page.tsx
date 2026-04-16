@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { API_BASE_URL } from "@/lib/api-client";
 import {
     Download, Upload, FolderOpen, ChevronLeft, ChevronRight,
     ChevronsLeft, ChevronsRight, Search, Lock, Check, Loader2, CalendarRange, Save, X
@@ -82,7 +83,7 @@ export default function AssignmentPage() {
 
     const fetchUserRole = async () => {
         try {
-            const res = await fetch("/api/employees/me", { headers: getAuthHeaders() });
+            const res = await fetch(`${API_BASE_URL}/api/employees/me`, { headers: getAuthHeaders() });
             if (res.ok) {
                 const payload = await res.json();
                 const roleStr = payload.data.role?.toLowerCase() || "";
@@ -94,7 +95,7 @@ export default function AssignmentPage() {
 
     const loadShiftCategories = async () => {
         try {
-            const res = await fetch("/api/shifts", { headers: getAuthHeaders() });
+            const res = await fetch(`${API_BASE_URL}/api/shifts`, { headers: getAuthHeaders() });
             if (res.ok) setShiftCategories(await res.json());
         } catch (e) { console.error("Lỗi tải danh mục ca:", e); }
     };
@@ -104,8 +105,8 @@ export default function AssignmentPage() {
         setIsLoading(true);
         try {
             const [empRes, assignRes] = await Promise.all([
-                fetch(`/api/employees?page=${page}&size=${pageSize}&search=${encodeURIComponent(search)}`, { headers: getAuthHeaders() }),
-                fetch(`/api/assignments/details?start_date=${startDate}&end_date=${endDate}`, { headers: getAuthHeaders() })
+                fetch(`${API_BASE_URL}/api/employees?page=${page}&size=${pageSize}&search=${encodeURIComponent(search)}`, { headers: getAuthHeaders() }),
+                fetch(`${API_BASE_URL}/api/assignments/details?start_date=${startDate}&end_date=${endDate}`, { headers: getAuthHeaders() })
             ]);
 
             if (empRes.ok && assignRes.ok) {
@@ -169,7 +170,7 @@ export default function AssignmentPage() {
         if (!modalData) return;
         try {
             const shiftCodeStr = selectedShiftCodes.join(", ");
-            const res = await fetch("/api/assignments", {
+            const res = await fetch(`${API_BASE_URL}/api/assignments`, {
                 method: "POST",
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
@@ -193,7 +194,7 @@ export default function AssignmentPage() {
         const searchKeyword = search.trim();
 
         // Khớp đúng URL từ file cũ: /api/assignments/export_template
-        let url = `/api/assignments/export_template?start_date=${startDate}&end_date=${endDate}`;
+        let url = `${API_BASE_URL}/api/assignments/export_template?start_date=${startDate}&end_date=${endDate}`;
 
         if (searchKeyword) {
             url += `&search=${encodeURIComponent(searchKeyword)}`;
@@ -250,7 +251,7 @@ export default function AssignmentPage() {
 
         setIsLoading(true); // Bật trạng thái loading khi đang gởi file
         try {
-            const res = await fetch("/api/assignments/import", {
+            const res = await fetch(`${API_BASE_URL}/api/assignments/import`, {
                 method: "POST",
                 headers: {
                     "Authorization": getAuthHeaders().Authorization, // Chỉ lấy Token, không để Content-Type là json

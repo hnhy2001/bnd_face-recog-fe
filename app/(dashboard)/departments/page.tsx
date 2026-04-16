@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/api-client";
 import {
     Building2, Hospital, Stethoscope, Briefcase,
     Users2, Landmark, Plus, Edit2, Trash2, X, Save,
@@ -68,7 +69,7 @@ export default function DepartmentsPage() {
 
         try {
             setIsLoading(true);
-            const res = await fetch('/api/departments', {
+            const res = await fetch(`${API_BASE_URL}/api/departments`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (res.ok) {
@@ -158,7 +159,7 @@ export default function DepartmentsPage() {
 
         if (confirm(`⚠️ Bạn có chắc chắn muốn xóa đơn vị [${code}]? Hành động này không thể hoàn tác!`)) {
             const token = localStorage.getItem("hrm_token");
-            const res = await fetch(`/api/departments/${id}`, {
+            const res = await fetch(`${API_BASE_URL}/api/departments/${id}`, {
                 method: 'DELETE',
                 headers: { "Authorization": `Bearer ${token}` }
             });
@@ -186,7 +187,7 @@ export default function DepartmentsPage() {
         };
 
         const method = editingId ? 'PUT' : 'POST';
-        const url = editingId ? `/api/departments/${editingId}` : '/api/departments';
+        const url = editingId ? `${API_BASE_URL}/api/departments/${editingId}` : `${API_BASE_URL}/api/departments`;
 
         try {
             const res = await fetch(url, {

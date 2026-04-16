@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { API_BASE_URL } from "@/lib/api-client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -28,7 +29,7 @@ export default function LoginPage() {
 
     try {
       // Trong hàm handleLogin
-      const res = await fetch('/api/login', { // Trình duyệt SẼ HIỆN gọi đến 3000 (đúng ý đồ)
+      const res = await fetch(`${API_BASE_URL}/api/login`, { // Trình duyệt SẼ HIỆN gọi đến 3000 (đúng ý đồ)
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,7 +1,29 @@
 import axios from 'axios';
 
+// Base URL cho API
+export const API_BASE_URL = 'https://hrm.benhnhietdoi.vn';
+
+// Helper function để tạo full API URL
+export const getApiUrl = (path: string) => {
+  // Nếu path đã có http/https thì return luôn
+  if (path.startsWith('http')) return path;
+  // Nếu path không bắt đầu bằng / thì thêm vào
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
+};
+
+// Helper function để tạo full Image URL
+export const getImageUrl = (path?: string | null) => {
+  if (!path || path === 'null' || path.trim() === '') return '';
+  // Nếu đã là full URL thì return luôn
+  if (path.startsWith('http')) return path;
+  // Nếu là relative path thì thêm base URL
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
+};
+
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || API_BASE_URL,
 });
 
 // "Mặt nạ" đánh chặn phản hồi từ Server
