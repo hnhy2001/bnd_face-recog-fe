@@ -6,6 +6,15 @@ const nextConfig = {
       fullUrl: false,
     },
   },
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/login',
+        permanent: false, // Temporary redirect (307)
+      },
+    ];
+  },
   async rewrites() {
     return [
       {
