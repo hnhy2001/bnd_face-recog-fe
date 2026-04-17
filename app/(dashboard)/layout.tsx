@@ -97,7 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { id: "nav-employees", label: "QUẢN LÝ NHÂN SỰ", href: "/employees", icon: Users, roles: ["admin"] },
     { id: "nav-shifts", label: "DANH MỤC LỊCH", href: "/shifts", icon: CalendarClock, roles: ["admin"] },
     { id: "nav-assignments", label: "PHÂN CÔNG LỊCH", href: "/assignments", icon: Handshake, roles: ["admin", "manager", "user"] },
-    { id: "nav-scan", label: "QUÉT MẶT BẰNG CAMERA", href: "/scan", icon: Camera, roles: ["admin", "manager", "user"] },
+    { id: "nav-scan", label: "QUÉT MẶT BẰNG CAMERA", href: "/enroll", icon: Camera, roles: ["admin", "manager", "user"] },
     { id: "nav-attendance", label: "NHẬT KÝ CHẤM CÔNG", href: "/attendance", icon: ClipboardList, roles: ["admin", "manager", "user"] },
     { id: "nav-explanation", label: "GIẢI TRÌNH", href: "/explanation", icon: FileText, roles: ["admin", "manager", "user"] },
     { id: "nav-shift-swap", label: "ĐỔI CA", href: "/shift-swap", icon: RefreshCcw, roles: ["admin", "manager", "user"] },

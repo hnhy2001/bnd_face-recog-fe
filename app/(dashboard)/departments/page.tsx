@@ -111,7 +111,7 @@ export default function DepartmentsPage() {
     // ==========================================
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData((prev: typeof initialFormState) => ({ ...prev, [name]: value }));
     };
 
     const handleAddNew = () => {

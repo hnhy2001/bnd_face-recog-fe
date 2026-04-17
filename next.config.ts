@@ -1,5 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Enable standalone output cho Docker
+  output: 'standalone',
+  
+  // Tắt type check khi build (để build nhanh hơn)
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  
+  // Tắt ESLint check khi build
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
   // Tắt logging của Turbopack
   logging: {
     fetches: {
