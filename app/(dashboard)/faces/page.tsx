@@ -251,13 +251,12 @@ export default function FaceManagementPage() {
                 </div>
             </div>
 
-            {/* MAIN CONTENT CARD */}
-            <div className="hrm-card flex-1 flex flex-col min-h-0 overflow-hidden bg-card shadow-sm">
-
+            {/* MAIN CONTENT CONTAINER */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto md:overflow-hidden custom-scrollbar bg-background gap-4 pb-20 md:pb-0">
                 {/* BỘ LỌC & TÌM KIẾM */}
-                <div className="flex-shrink-0 px-5 py-4 border-b border-border bg-muted/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="hrm-card p-4 border border-border bg-card shadow-sm shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <h3 className="text-sm font-black uppercase tracking-widest text-foreground m-0 flex items-center gap-2">
-                        <Filter size={16} className="text-primary" /> Dữ Liệu Hình Ảnh
+                        <Filter size={16} className="text-primary" /> Lọc Hình Ảnh
                     </h3>
 
                     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -286,116 +285,123 @@ export default function FaceManagementPage() {
                     </div>
                 </div>
 
-                {/* GRID HIỂN THỊ ẢNH (SCROLLABLE) */}
-                <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar p-5 bg-card">
-                    {isLoading ? (
-                        <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
-                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-[11px] font-bold uppercase tracking-widest">Đang tải danh sách ảnh...</span>
-                        </div>
-                    ) : faces.length === 0 ? (
-                        <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2">
-                            <CameraOff className="w-10 h-10 opacity-20 mb-2" />
-                            <span className="text-[11px] font-bold uppercase tracking-widest">Không tìm thấy dữ liệu khuôn mặt.</span>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                            {faces.map((item) => (
-                                <div key={item.username} className={`flex flex-col bg-card border rounded-xl overflow-hidden shadow-sm hover:-translate-y-1 hover:shadow-md transition-all ${item.type === 'unmapped' ? 'border-amber-500' : 'border-border'}`}>
+                {/* TABLE CONTAINER */}
+                <div className="flex-1 shrink-0 md:shrink flex flex-col min-h-[400px] md:min-h-0 md:hrm-card md:bg-card md:border md:border-border md:shadow-sm md:rounded-xl md:overflow-hidden relative">
+                    <div className="hidden md:flex flex-shrink-0 px-5 py-4 border-b border-border bg-muted/30">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-foreground m-0">Danh Sách Hình Ảnh</h3>
+                    </div>
 
-                                    {/* Khu vực ảnh */}
-                                    <div className="relative h-[200px] bg-muted/20 border-b border-border w-full overflow-hidden flex flex-col">
-                                        {renderBadge(item.type, item.images ? item.images.length : 0)}
+                    {/* GRID HIỂN THỊ ẢNH (SCROLLABLE) */}
+                    <div className="flex-1 overflow-visible md:overflow-y-auto custom-scrollbar p-5 w-full">
+                        {isLoading ? (
+                            <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-[11px] font-bold uppercase tracking-widest">Đang tải danh sách ảnh...</span>
+                            </div>
+                        ) : faces.length === 0 ? (
+                            <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2">
+                                <CameraOff className="w-10 h-10 opacity-20 mb-2" />
+                                <span className="text-[11px] font-bold uppercase tracking-widest">Không tìm thấy dữ liệu khuôn mặt.</span>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                {faces.map((item) => (
+                                    <div key={item.username} className={`flex flex-col bg-card border rounded-xl overflow-hidden shadow-sm hover:-translate-y-1 hover:shadow-md transition-all ${item.type === 'unmapped' ? 'border-amber-500' : 'border-border'}`}>
 
-                                        {item.images && item.images.length > 0 ? (
-                                            <div className="flex-1 flex overflow-x-auto gap-3 p-4 items-center custom-scrollbar">
-                                                {item.images.map(imgName => (
-                                                    <div key={imgName} className="relative flex-shrink-0 group/img flex flex-col items-center h-full justify-center">
-                                                        <button
-                                                            onClick={() => deleteSingleFace(imgName)}
-                                                            className="absolute top-1 right-1 z-20 bg-destructive text-white p-1 rounded-full opacity-0 group-hover/img:opacity-100 hover:scale-110 transition-all shadow-md"
-                                                            title="Xóa bức ảnh này"
-                                                        >
-                                                            <X size={12} strokeWidth={4} />
+                                        {/* Khu vực ảnh */}
+                                        <div className="relative h-[200px] bg-muted/20 border-b border-border w-full overflow-hidden flex flex-col">
+                                            {renderBadge(item.type, item.images ? item.images.length : 0)}
+
+                                            {item.images && item.images.length > 0 ? (
+                                                <div className="flex-1 flex overflow-x-auto gap-3 p-4 items-center custom-scrollbar">
+                                                    {item.images.map(imgName => (
+                                                        <div key={imgName} className="relative flex-shrink-0 group/img flex flex-col items-center h-full justify-center">
+                                                            <button
+                                                                onClick={() => deleteSingleFace(imgName)}
+                                                                className="absolute top-1 right-1 z-20 bg-destructive text-white p-1 rounded-full opacity-0 group-hover/img:opacity-100 hover:scale-110 transition-all shadow-md"
+                                                                title="Xóa bức ảnh này"
+                                                            >
+                                                                <X size={12} strokeWidth={4} />
+                                                            </button>
+                                                            <img
+                                                                src={`${API_BASE_URL}/api/faces/image/${imgName}?t=${Date.now()}`}
+                                                                alt={imgName}
+                                                                className="h-[140px] w-[110px] object-cover rounded-lg border-2 border-background shadow-sm"
+                                                            />
+                                                            <span className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[8px] px-1.5 py-0.5 rounded font-mono font-bold whitespace-nowrap z-10 pointer-events-none">
+                                                                {imgName}.jpg
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                                                    <CameraOff className="w-8 h-8 opacity-30" />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Chưa Có Ảnh</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Thông tin & Action */}
+                                        <div className="p-4 flex flex-col flex-1 bg-background">
+                                            <h4 className="text-[14px] font-black text-foreground mb-1 line-clamp-1" title={item.full_name}>{item.full_name}</h4>
+                                            <div className="flex items-center gap-1.5 text-muted-foreground mb-1 text-[11px]">
+                                                <User size={12} /> Mã: <strong className="text-primary font-mono">{item.username}</strong>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-muted-foreground mb-4 text-[11px] line-clamp-1">
+                                                <Building size={12} /> {item.department_name || "Chưa xếp phòng ban"}
+                                            </div>
+
+                                            <div className="mt-auto flex flex-col gap-2">
+                                                {item.type === 'mapped' && (
+                                                    <button onClick={() => deleteFaceAll(item.username, item.full_name)} className="w-full py-2 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+                                                        <Trash2 size={14} /> Xóa Toàn Bộ Ảnh
+                                                    </button>
+                                                )}
+                                                {item.type === 'unmapped' && (
+                                                    <>
+                                                        <button onClick={() => openQuickReg(item.username)} className="w-full py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm">
+                                                            <Zap size={14} /> Đăng Ký Nhanh
                                                         </button>
-                                                        <img
-                                                            src={`${API_BASE_URL}/api/faces/image/${imgName}?t=${Date.now()}`}
-                                                            alt={imgName}
-                                                            className="h-[140px] w-[110px] object-cover rounded-lg border-2 border-background shadow-sm"
-                                                        />
-                                                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[8px] px-1.5 py-0.5 rounded font-mono font-bold whitespace-nowrap z-10 pointer-events-none">
-                                                            {imgName}.jpg
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
-                                                <CameraOff className="w-8 h-8 opacity-30" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Chưa Có Ảnh</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Thông tin & Action */}
-                                    <div className="p-4 flex flex-col flex-1 bg-background">
-                                        <h4 className="text-[14px] font-black text-foreground mb-1 line-clamp-1" title={item.full_name}>{item.full_name}</h4>
-                                        <div className="flex items-center gap-1.5 text-muted-foreground mb-1 text-[11px]">
-                                            <User size={12} /> Mã: <strong className="text-primary font-mono">{item.username}</strong>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 text-muted-foreground mb-4 text-[11px] line-clamp-1">
-                                            <Building size={12} /> {item.department_name || "Chưa xếp phòng ban"}
-                                        </div>
-
-                                        <div className="mt-auto flex flex-col gap-2">
-                                            {item.type === 'mapped' && (
-                                                <button onClick={() => deleteFaceAll(item.username, item.full_name)} className="w-full py-2 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
-                                                    <Trash2 size={14} /> Xóa Toàn Bộ Ảnh
-                                                </button>
-                                            )}
-                                            {item.type === 'unmapped' && (
-                                                <>
-                                                    <button onClick={() => openQuickReg(item.username)} className="w-full py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm">
-                                                        <Zap size={14} /> Đăng Ký Nhanh
+                                                        <button onClick={() => deleteFaceAll(item.username, item.username)} className="w-full py-2 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+                                                            <Trash2 size={14} /> Xóa Thư Mục Ảnh
+                                                        </button>
+                                                    </>
+                                                )}
+                                                {item.type === 'no_face' && (
+                                                    <button disabled className="w-full py-2 bg-muted text-muted-foreground rounded-lg text-[10px] font-black uppercase tracking-widest cursor-not-allowed">
+                                                        Chưa Thể Thao Tác
                                                     </button>
-                                                    <button onClick={() => deleteFaceAll(item.username, item.username)} className="w-full py-2 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
-                                                        <Trash2 size={14} /> Xóa Thư Mục Ảnh
-                                                    </button>
-                                                </>
-                                            )}
-                                            {item.type === 'no_face' && (
-                                                <button disabled className="w-full py-2 bg-muted text-muted-foreground rounded-lg text-[10px] font-black uppercase tracking-widest cursor-not-allowed">
-                                                    Chưa Thể Thao Tác
-                                                </button>
-                                            )}
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* PHÂN TRANG */}
+                    {!isLoading && totalPages > 0 && (
+                        <div className="flex-none flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-t border-border bg-card">
+                            <div className="flex items-center gap-1">
+                                <button disabled={page === 1} onClick={() => setPage(1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsLeft size={16} /></button>
+                                <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronLeft size={16} /></button>
+                                <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mx-3">Trang {page} / {totalPages}</span>
+                                <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronRight size={16} /></button>
+                                <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsRight size={16} /></button>
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                                <span>Tổng: <strong className="text-foreground">{totalItems}</strong></span>
+                                <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="p-1 border border-border rounded bg-background text-foreground cursor-pointer outline-none">
+                                    <option value="12">12 thẻ</option>
+                                    <option value="24">24 thẻ</option>
+                                    <option value="48">48 thẻ</option>
+                                </select>
+                            </div>
                         </div>
                     )}
                 </div>
-
-                {/* GIAO DIỆN PHÂN TRANG (Giữ nguyên chuẩn ShiftsPage) */}
-                {!isLoading && totalPages > 0 && (
-                    <div className="flex-none flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-t border-border bg-card">
-                        <div className="flex items-center gap-1">
-                            <button disabled={page === 1} onClick={() => setPage(1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsLeft size={16} /></button>
-                            <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronLeft size={16} /></button>
-                            <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mx-3">Trang {page} / {totalPages}</span>
-                            <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronRight size={16} /></button>
-                            <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsRight size={16} /></button>
-                        </div>
-                        <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                            <span>Tổng: <strong className="text-foreground">{totalItems}</strong></span>
-                            <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="p-1 border border-border rounded bg-background text-foreground cursor-pointer outline-none">
-                                <option value="12">12 Thẻ</option>
-                                <option value="24">24 Thẻ</option>
-                                <option value="48">48 Thẻ</option>
-                            </select>
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* ==================================================== */}

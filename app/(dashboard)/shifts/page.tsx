@@ -201,16 +201,17 @@ export default function ShiftsPage() {
                 </button>
             </div>
 
-            {/* MAIN CONTENT CARD */}
-            <div className="hrm-card flex-1 flex flex-col min-h-0 overflow-hidden bg-card border border-border rounded-xl shadow-sm">
+            {/* MAIN CONTENT CONTAINER */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto md:overflow-hidden custom-scrollbar bg-background gap-4 pb-20 md:pb-0">
+                {/* TABLE CONTAINER */}
+                <div className="flex-1 shrink-0 md:shrink flex flex-col min-h-[400px] md:min-h-0 md:hrm-card md:bg-card md:border md:border-border md:shadow-sm md:rounded-xl md:overflow-hidden relative">
+                    {/* CARD HEADER (Cố định) */}
+                    <div className="hidden md:flex flex-shrink-0 px-5 py-4 border-b border-border bg-muted/30">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-foreground m-0">Danh Sách Ca Làm Việc</h3>
+                    </div>
 
-                {/* CARD HEADER (Cố định) */}
-                <div className="flex-shrink-0 px-5 py-4 border-b border-border bg-muted/30">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-foreground m-0">Danh Sách Ca Làm Việc</h3>
-                </div>
-
-                {/* VÙNG CHỨA BẢNG ĐƯỢC PHÉP SCROLL */}
-                <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar relative bg-card">
+                    {/* VÙNG CHỨA BẢNG ĐƯỢC PHÉP SCROLL */}
+                    <div className="flex-1 overflow-visible md:overflow-y-auto custom-scrollbar relative w-full bg-card">
                     {isLoading ? (
                         <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
                             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -361,9 +362,7 @@ export default function ShiftsPage() {
                     )}
                 </div>
 
-                {/* ==================================================== */}
-                {/* [MỚI] GIAO DIỆN PHÂN TRANG */}
-                {/* ==================================================== */}
+                {/* PHÂN TRANG */}
                 {!isLoading && totalPages > 0 && (
                     <div className="flex-none flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-t border-border bg-card">
                         <div className="flex items-center gap-1">
@@ -373,7 +372,7 @@ export default function ShiftsPage() {
                             <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronRight size={16} /></button>
                             <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsRight size={16} /></button>
                         </div>
-                        <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                             <span>Tổng: <strong className="text-foreground">{totalItems}</strong></span>
                             <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="p-1 border border-border rounded bg-background text-foreground cursor-pointer outline-none">
                                 <option value="15">15 dòng</option>
@@ -383,6 +382,7 @@ export default function ShiftsPage() {
                         </div>
                     </div>
                 )}
+                </div>
             </div>
 
             {/* ==================================================== */}

@@ -328,10 +328,13 @@ export default function DepartmentsPage() {
                 </div>
             </div>
 
+            {/* MAIN CONTENT CONTAINER */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto md:overflow-hidden custom-scrollbar bg-background gap-4 pb-20 md:pb-0">
+
             {/* ==================================================== */}
             {/* KHU VỰC HIỂN THỊ CÂY THƯ MỤC CHÍNH (Tự động co giãn và sinh Scrollbar) */}
             {/* ==================================================== */}
-            <div className="hrm-card flex-1 flex flex-col min-h-0 w-full max-w-full overflow-hidden bg-card border border-border rounded-xl shadow-sm">
+            <div className="flex-1 shrink-0 md:shrink flex flex-col min-h-[400px] md:min-h-0 md:hrm-card md:bg-card md:border md:border-border md:shadow-sm md:rounded-xl md:overflow-hidden relative">
                 {isLoading ? (
                     <div className="h-full py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
                         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -347,10 +350,11 @@ export default function DepartmentsPage() {
                     </div>
                 ) : (
                     // Vùng duy nhất được phép Scroll
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-5 xl:p-8 w-full max-w-full relative">
+                    <div className="flex-1 overflow-visible md:overflow-y-auto custom-scrollbar p-3 sm:p-5 xl:p-8 w-full max-w-full relative">
                         <DepartmentTree parentId={null} />
                     </div>
                 )}
+            </div>
             </div>
 
             {/* ==================================================== */}

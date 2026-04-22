@@ -380,8 +380,7 @@ export default function EmployeesPage() {
     const activeEmpData = activeDropdown ? employees.find(e => e.username === activeDropdown) : null;
 
     return (
-        // Đã sử dụng h-[calc(100vh-80px)] để trừ hao phần header trên cùng. Đảm bảo component sẽ co lại đúng 1 màn hình.
-        <div className="w-full h-[calc(100vh-80px)] flex flex-col overflow-hidden animate-in fade-in duration-500 pb-4">
+        <div className="w-full flex-1 flex flex-col h-full min-h-0 animate-in fade-in duration-500 relative text-foreground pb-4">
             <input type="file" ref={faceInputRef} accept="image/jpeg, image/png" className="hidden" onChange={onFaceFileChange} />
             <input type="file" ref={fileInputRef} accept=".xlsx, .xls" className="hidden" onChange={onImportFileChange} />
 
@@ -408,11 +407,10 @@ export default function EmployeesPage() {
                 </div>
             </div>
 
-            {/* BOX TRẮNG CHỨA TABLE */}
-            <div className="flex-1 flex flex-col min-h-0 bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-
+            {/* MAIN CONTENT CONTAINER - Khoảng pb-[90px] giúp cuộn qua khỏi menu dưới của điện thoại */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto md:overflow-hidden custom-scrollbar bg-background gap-4 pb-[90px] md:pb-0">
                 {/* THANH TÌM KIẾM */}
-                <div className="flex-none p-4 border-b border-border bg-muted/30 flex flex-col sm:flex-row gap-3">
+                <div className="hrm-card p-4 border border-border bg-card shadow-sm shrink-0 flex flex-col sm:flex-row gap-3">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <input
@@ -430,155 +428,153 @@ export default function EmployeesPage() {
                     </select>
                 </div>
 
-                {/* VÙNG DỮ LIỆU CUỘN */}
-                <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar relative" onScroll={handleScrollTable}>
-                    {isLoading ? (
-                        <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
-                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-[11px] font-bold uppercase tracking-widest">Đang tải dữ liệu...</span>
-                        </div>
-                    ) : employees.length === 0 ? (
-                        <div className="py-20 text-center text-muted-foreground">
-                            <Users className="w-10 h-10 mx-auto opacity-20 mb-3" />
-                            <p className="text-[11px] font-bold uppercase tracking-widest">Không tìm thấy nhân viên nào.</p>
-                        </div>
-                    ) : (
-                        <>
-                            {/* MOBILE VIEW */}
-                            <div className="md:hidden flex flex-col p-3 gap-3 bg-muted/10 pb-4">
-                                {employees.map((emp) => (
-                                    <div key={emp.username} className="bg-card border border-border rounded-xl p-4 shadow-sm relative">
-                                        <div className="absolute top-3 right-3">
-                                            <button onClick={(e) => toggleAction(e, emp.username)} className="p-1.5 text-muted-foreground hover:bg-secondary rounded-lg border border-transparent hover:border-border transition-all">
-                                                <MoreVertical size={16} />
-                                            </button>
-                                        </div>
+                {/* TABLE CONTAINER */}
+                <div className="flex-1 shrink-0 md:shrink flex flex-col min-h-[400px] md:min-h-0 md:hrm-card md:bg-card md:border md:border-border md:shadow-sm md:rounded-xl md:overflow-hidden relative">
 
-                                        <div className="w-full flex flex-col">
-                                            <div className="pr-10">
-                                                <h4 className="text-sm font-bold text-foreground mb-1">{emp.full_name}</h4>
-                                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">MÃ: {emp.username}</p>
-                                            </div>
-                                            <div className="flex flex-wrap items-center gap-2 mb-3">
-                                                {getRoleBadge(emp.role)}
-                                                {emp.is_locked === 1
-                                                    ? <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-destructive/10 text-destructive border border-destructive/20">Đã khóa</span>
-                                                    : <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">H.Động</span>}
-                                            </div>
-                                            <p className="text-[11px] text-muted-foreground font-medium mb-3">🏢 {emp.department_name || 'Chưa xếp phòng'}</p>
-
-                                            <div className="grid grid-cols-2 gap-2 bg-muted/50 p-2.5 rounded-lg border border-border w-full">
-                                                <div className="flex justify-between items-center"><span className="text-[9px] font-black text-muted-foreground uppercase">C.C Cá nhân</span><CustomToggle checked={emp.ccCaNhan === 1} readOnly /></div>
-                                                <div className="flex justify-between items-center"><span className="text-[9px] font-black text-muted-foreground uppercase">C.C T.Trung</span><CustomToggle checked={emp.ccTapTrung === 1} readOnly /></div>
-                                                <div className="flex justify-between items-center"><span className="text-[9px] font-black text-muted-foreground uppercase">KT Vị trí</span><CustomToggle checked={emp.checkViTri === 1} readOnly /></div>
-                                                <div className="flex justify-between items-center"><span className="text-[9px] font-black text-muted-foreground uppercase">KT Mạng</span><CustomToggle checked={emp.checkMang === 1} readOnly /></div>
-                                            </div>
-
-                                            <div className="mt-3 flex items-center justify-between gap-2 bg-muted/50 p-2.5 rounded-lg border border-border w-full">
-                                                <span className="text-[9px] font-black text-muted-foreground uppercase">Khuôn mặt AI:</span>
-                                                {emp.has_face ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1"><CheckCircle2 size={12} /> Đã có</span>
-                                                        <button onClick={() => deleteFace(emp.username)} className="p-1.5 text-destructive bg-destructive/10 rounded border border-destructive/20 hover:bg-destructive/20"><Trash2 size={12} /></button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">🔴 Chưa có</span>
-                                                        <button onClick={() => triggerFaceUpload(emp.username)} className="px-2 py-1.5 text-primary bg-primary/10 rounded border border-primary/20 hover:bg-primary/20 font-bold text-[10px] flex items-center gap-1"><Camera size={12} /> Thêm</button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+                    {/* VÙNG DỮ LIỆU CUỘN */}
+                    <div className="flex-1 overflow-visible md:overflow-y-auto custom-scrollbar relative w-full" onScroll={handleScrollTable}>
+                        {isLoading ? (
+                            <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-[11px] font-bold uppercase tracking-widest">Đang tải dữ liệu...</span>
                             </div>
+                        ) : employees.length === 0 ? (
+                            <div className="py-20 text-center text-muted-foreground">
+                                <Users className="w-10 h-10 mx-auto opacity-20 mb-3" />
+                                <p className="text-[11px] font-bold uppercase tracking-widest">Không tìm thấy nhân viên nào.</p>
+                            </div>
+                        ) : (
+                            <>
+                                {/* MOBILE VIEW */}
+                                <div className="md:hidden flex flex-col p-3 gap-3 bg-muted/10 pb-4">
+                                    {employees.map((emp) => (
+                                        <div key={emp.username} className="bg-card border border-border rounded-xl p-4 shadow-sm relative">
+                                            <div className="absolute top-3 right-3">
+                                                <button onClick={(e) => toggleAction(e, emp.username)} className="p-1.5 text-muted-foreground hover:bg-secondary rounded-lg border border-transparent hover:border-border transition-all">
+                                                    <MoreVertical size={16} />
+                                                </button>
+                                            </div>
 
-                            {/* DESKTOP VIEW */}
-                            <div className="hidden md:block w-full">
-                                {/* 1. DÙNG BORDER-SEPARATE thay vì BORDER-COLLAPSE */}
-                                <table className="w-full text-left border-separate" style={{ borderSpacing: 0 }}>
+                                            <div className="w-full flex flex-col">
+                                                <div className="pr-10">
+                                                    <h4 className="text-sm font-bold text-foreground mb-1">{emp.full_name}</h4>
+                                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">MÃ: {emp.username}</p>
+                                                </div>
+                                                <div className="flex flex-wrap items-center gap-2 mb-3">
+                                                    {getRoleBadge(emp.role)}
+                                                    {emp.is_locked === 1
+                                                        ? <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-destructive/10 text-destructive border border-destructive/20">Đã khóa</span>
+                                                        : <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">H.Động</span>}
+                                                </div>
+                                                <p className="text-[11px] text-muted-foreground font-medium mb-3">🏢 {emp.department_name || 'Chưa xếp phòng'}</p>
 
-                                    <thead className="sticky top-0 z-[30] shadow-sm">
-                                        <tr>
-                                            {/* 2. Ép cứng màu nền bg-muted và viền trực tiếp vào TỪNG thẻ <th> */}
-                                            <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest w-[50px] text-center">⚙️</th>
-                                            <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Nhân viên</th>
-                                            <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Phòng ban</th>
-                                            <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Vai trò</th>
-                                            <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">CC CN</th>
-                                            <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">CC TT</th>
-                                            <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">KT VT</th>
-                                            <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">KT MG</th>
-                                            <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">Face AI</th>
-                                        </tr>
-                                    </thead>
+                                                <div className="grid grid-cols-2 gap-2 bg-muted/50 p-2.5 rounded-lg border border-border w-full">
+                                                    <div className="flex justify-between items-center"><span className="text-[9px] font-black text-muted-foreground uppercase">C.C Cá nhân</span><CustomToggle checked={emp.ccCaNhan === 1} readOnly /></div>
+                                                    <div className="flex justify-between items-center"><span className="text-[9px] font-black text-muted-foreground uppercase">C.C T.Trung</span><CustomToggle checked={emp.ccTapTrung === 1} readOnly /></div>
+                                                    <div className="flex justify-between items-center"><span className="text-[9px] font-black text-muted-foreground uppercase">KT Vị trí</span><CustomToggle checked={emp.checkViTri === 1} readOnly /></div>
+                                                    <div className="flex justify-between items-center"><span className="text-[9px] font-black text-muted-foreground uppercase">KT Mạng</span><CustomToggle checked={emp.checkMang === 1} readOnly /></div>
+                                                </div>
 
-                                    <tbody className="bg-card">
-                                        {employees.map(emp => (
-                                            <tr key={emp.username} className={`transition-colors ${activeDropdown === emp.username ? 'bg-muted/50' : 'hover:bg-muted/30'}`}>
-
-                                                {/* 3. Vì dùng separate, ta phải cấp viền dưới border-b cho TỪNG thẻ <td> thay vì thẻ <tr> */}
-                                                <td className="py-2.5 px-4 text-center border-b border-border">
-                                                    <button onClick={(e) => toggleAction(e, emp.username)} className={`p-1.5 rounded-lg border transition-all ${activeDropdown === emp.username ? 'bg-secondary border-border text-foreground' : 'text-muted-foreground border-transparent hover:bg-secondary hover:border-border'}`}>
-                                                        <MoreVertical size={16} />
-                                                    </button>
-                                                </td>
-                                                <td className="py-2.5 px-4 border-b border-border">
-                                                    <strong className="text-[13px] text-foreground block">{emp.full_name}</strong>
-                                                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{emp.username}</span>
-                                                </td>
-                                                <td className="py-2.5 px-4 text-[11px] font-medium text-muted-foreground border-b border-border">
-                                                    {emp.department_name || '---'}
-                                                </td>
-                                                <td className="py-2.5 px-4 border-b border-border">
-                                                    <div className="flex flex-col items-start gap-1">
-                                                        {getRoleBadge(emp.role)}
-                                                        {emp.is_locked === 1 && <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-destructive/10 text-destructive border border-destructive/20 mt-1">Đã khóa</span>}
-                                                    </div>
-                                                </td>
-                                                <td className="py-2.5 px-4 text-center border-b border-border"><CustomToggle checked={emp.ccCaNhan === 1} readOnly /></td>
-                                                <td className="py-2.5 px-4 text-center border-b border-border"><CustomToggle checked={emp.ccTapTrung === 1} readOnly /></td>
-                                                <td className="py-2.5 px-4 text-center border-b border-border"><CustomToggle checked={emp.checkViTri === 1} readOnly /></td>
-                                                <td className="py-2.5 px-4 text-center border-b border-border"><CustomToggle checked={emp.checkMang === 1} readOnly /></td>
-                                                <td className="py-2.5 px-4 text-center border-b border-border">
+                                                <div className="mt-3 flex items-center justify-between gap-2 bg-muted/50 p-2.5 rounded-lg border border-border w-full">
+                                                    <span className="text-[9px] font-black text-muted-foreground uppercase">Khuôn mặt AI:</span>
                                                     {emp.has_face ? (
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            <span className="text-[10px] font-bold text-emerald-600"><CheckCircle2 size={16} /></span>
-                                                            <button onClick={() => deleteFace(emp.username)} className="p-1 text-destructive hover:bg-destructive/10 rounded"><Trash2 size={14} /></button>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1"><CheckCircle2 size={12} /> Đã có</span>
+                                                            <button onClick={() => deleteFace(emp.username)} className="p-1.5 text-destructive bg-destructive/10 rounded border border-destructive/20 hover:bg-destructive/20"><Trash2 size={12} /></button>
                                                         </div>
                                                     ) : (
-                                                        <button onClick={() => triggerFaceUpload(emp.username)} className="p-1.5 text-primary bg-primary/10 rounded border border-primary/20 hover:bg-primary/20 font-bold text-[10px] uppercase mx-auto flex items-center gap-1"><Camera size={12} /> Tải</button>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">🔴 Chưa có</span>
+                                                            <button onClick={() => triggerFaceUpload(emp.username)} className="px-2 py-1.5 text-primary bg-primary/10 rounded border border-primary/20 hover:bg-primary/20 font-bold text-[10px] flex items-center gap-1"><Camera size={12} /> Thêm</button>
+                                                        </div>
                                                     )}
-                                                </td>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* DESKTOP VIEW */}
+                                <div className="hidden md:block w-full">
+                                    <table className="w-full text-left border-separate" style={{ borderSpacing: 0 }}>
+                                        <thead className="sticky top-0 z-[30] shadow-sm">
+                                            <tr>
+                                                <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest w-[50px] text-center">⚙️</th>
+                                                <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Nhân viên</th>
+                                                <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Phòng ban</th>
+                                                <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">Vai trò</th>
+                                                <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">CC CN</th>
+                                                <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">CC TT</th>
+                                                <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">KT VT</th>
+                                                <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">KT MG</th>
+                                                <th className="bg-muted border-y border-border py-3 px-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">Face AI</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="bg-card">
+                                            {employees.map(emp => (
+                                                <tr key={emp.username} className={`transition-colors ${activeDropdown === emp.username ? 'bg-muted/50' : 'hover:bg-muted/30'}`}>
+                                                    <td className="py-2.5 px-4 text-center border-b border-border">
+                                                        <button onClick={(e) => toggleAction(e, emp.username)} className={`p-1.5 rounded-lg border transition-all ${activeDropdown === emp.username ? 'bg-secondary border-border text-foreground' : 'text-muted-foreground border-transparent hover:bg-secondary hover:border-border'}`}>
+                                                            <MoreVertical size={16} />
+                                                        </button>
+                                                    </td>
+                                                    <td className="py-2.5 px-4 border-b border-border">
+                                                        <strong className="text-[13px] text-foreground block">{emp.full_name}</strong>
+                                                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{emp.username}</span>
+                                                    </td>
+                                                    <td className="py-2.5 px-4 text-[11px] font-medium text-muted-foreground border-b border-border">
+                                                        {emp.department_name || '---'}
+                                                    </td>
+                                                    <td className="py-2.5 px-4 border-b border-border">
+                                                        <div className="flex flex-col items-start gap-1">
+                                                            {getRoleBadge(emp.role)}
+                                                            {emp.is_locked === 1 && <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-destructive/10 text-destructive border border-destructive/20 mt-1">Đã khóa</span>}
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-2.5 px-4 text-center border-b border-border"><CustomToggle checked={emp.ccCaNhan === 1} readOnly /></td>
+                                                    <td className="py-2.5 px-4 text-center border-b border-border"><CustomToggle checked={emp.ccTapTrung === 1} readOnly /></td>
+                                                    <td className="py-2.5 px-4 text-center border-b border-border"><CustomToggle checked={emp.checkViTri === 1} readOnly /></td>
+                                                    <td className="py-2.5 px-4 text-center border-b border-border"><CustomToggle checked={emp.checkMang === 1} readOnly /></td>
+                                                    <td className="py-2.5 px-4 text-center border-b border-border">
+                                                        {emp.has_face ? (
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                <span className="text-[10px] font-bold text-emerald-600"><CheckCircle2 size={16} /></span>
+                                                                <button onClick={() => deleteFace(emp.username)} className="p-1 text-destructive hover:bg-destructive/10 rounded"><Trash2 size={14} /></button>
+                                                            </div>
+                                                        ) : (
+                                                            <button onClick={() => triggerFaceUpload(emp.username)} className="p-1.5 text-primary bg-primary/10 rounded border border-primary/20 hover:bg-primary/20 font-bold text-[10px] uppercase mx-auto flex items-center gap-1"><Camera size={12} /> Tải</button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* PHÂN TRANG */}
+                    {!isLoading && totalPages > 0 && (
+                        <div className="flex-none flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-t border-border bg-card">
+                            <div className="flex items-center gap-1">
+                                <button disabled={page === 1} onClick={() => setPage(1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsLeft size={16} /></button>
+                                <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronLeft size={16} /></button>
+                                <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mx-3">Trang {page} / {totalPages}</span>
+                                <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronRight size={16} /></button>
+                                <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsRight size={16} /></button>
                             </div>
-                        </>
+                            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                                <span>Tổng: <strong className="text-foreground">{totalItems}</strong></span>
+                                <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="p-1 border border-border rounded bg-background text-foreground cursor-pointer outline-none">
+                                    <option value="15">15 dòng</option>
+                                    <option value="30">30 dòng</option>
+                                    <option value="50">50 dòng</option>
+                                </select>
+                            </div>
+                        </div>
                     )}
                 </div>
-
-                {/* PHÂN TRANG */}
-                {!isLoading && totalPages > 0 && (
-                    <div className="flex-none flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-t border-border bg-card">
-                        <div className="flex items-center gap-1">
-                            <button disabled={page === 1} onClick={() => setPage(1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50"><ChevronsLeft size={16} /></button>
-                            <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50"><ChevronLeft size={16} /></button>
-                            <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mx-3">Trang {page} / {totalPages}</span>
-                            <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50"><ChevronRight size={16} /></button>
-                            <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50"><ChevronsRight size={16} /></button>
-                        </div>
-                        <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                            <span>Tổng: <strong className="text-foreground">{totalItems}</strong></span>
-                            <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="p-1 border border-border rounded bg-background text-foreground cursor-pointer outline-none">
-                                <option value="15">15 dòng</option>
-                                <option value="30">30 dòng</option>
-                                <option value="50">50 dòng</option>
-                            </select>
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* ==================================================== */}
@@ -611,11 +607,9 @@ export default function EmployeesPage() {
             )}
 
             <div
-                // [FIX LỖI MENU MOBILE ĐÈ NÚT]: Thêm `pb-20 md:pb-0`
-                // [FIX BORDER]: Chuyển border-l thành md:border-l
                 className={`fixed top-0 right-0 bottom-0 w-full max-w-[500px] bg-card md:border-l border-border shadow-2xl z-[101] transform transition-transform duration-300 ease-in-out flex flex-col pb-20 md:pb-0 ${isPanelOpen ? "translate-x-0" : "translate-x-full"}`}
             >
-                {/* HEADER - Đã bỏ border-b và đổi nền bg-transparent */}
+                {/* HEADER */}
                 <div className="flex-shrink-0 flex items-center justify-between p-5 bg-transparent">
                     <div className="flex items-center gap-2">
                         {editingId ? <Edit2 className="w-5 h-5 text-primary" /> : <Plus className="w-5 h-5 text-primary" />}
@@ -658,7 +652,6 @@ export default function EmployeesPage() {
 
                             {formData.departments.map((dept, index) => (
                                 <div key={dept.id} className="flex flex-col sm:flex-row gap-2 p-2 bg-background border border-border rounded-lg shadow-sm">
-                                    {/* NỬA TRÁI (Trên mobile sẽ nằm ở dòng 1 và tự kéo giãn 100%) */}
                                     <select
                                         required
                                         value={dept.department_id}
@@ -669,7 +662,6 @@ export default function EmployeesPage() {
                                         {departments.map(d => <option key={d.id} value={d.id}>{d.unit_name}</option>)}
                                     </select>
 
-                                    {/* NỬA PHẢI (Trên mobile sẽ nằm ở dòng 2) */}
                                     <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-between sm:justify-start">
                                         <select
                                             value={dept.role}
@@ -692,7 +684,6 @@ export default function EmployeesPage() {
                                             Chính
                                         </label>
 
-                                        {/* Chỉnh lại h-9 w-9 cho nút xóa để nó cao bằng đúng cái ô Select bên cạnh */}
                                         <button
                                             type="button"
                                             onClick={() => removeDeptRow(dept.id)}
@@ -748,7 +739,7 @@ export default function EmployeesPage() {
                     </form>
                 </div>
 
-                {/* FOOTER - Đã bỏ border-t và đổi nền bg-transparent */}
+                {/* FOOTER */}
                 <div className="flex-shrink-0 p-5 bg-transparent flex gap-3">
                     <button type="button" onClick={handleClosePanel} className="flex-1 h-11 bg-secondary text-foreground font-bold uppercase tracking-widest text-[11px] rounded-xl hover:bg-muted transition-colors border border-border">
                         Hủy Bỏ
@@ -759,6 +750,6 @@ export default function EmployeesPage() {
                 </div>
             </div>
 
-        </div >
+        </div>
     );
 }

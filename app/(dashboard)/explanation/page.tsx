@@ -273,40 +273,42 @@ export default function ExplanationsPage() {
                 </button>
             </div>
 
-            {/* --- BỘ LỌC (FILTERS) --- */}
-            <div className="flex flex-col md:flex-row gap-4 mb-4 p-4 hrm-card bg-card border-border">
-                <div className="flex-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block flex items-center gap-1"><Search size={12} /> Mã Nhân Viên</label>
-                    <input
-                        type="text"
-                        placeholder="Nhập mã NV..."
-                        value={filters.username}
-                        onChange={(e) => { setFilters({ ...filters, username: e.target.value }); setPage(1); }}
-                        className="hrm-input h-9 px-3 bg-background text-foreground rounded-lg border border-border text-[12px] font-bold w-full uppercase"
-                    />
-                </div>
-                <div className="flex-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block flex items-center gap-1"><Filter size={12} /> Trạng Thái</label>
-                    <select
-                        value={filters.status}
-                        onChange={(e) => { setFilters({ ...filters, status: e.target.value }); setPage(1); }}
-                        className="hrm-input h-9 px-3 rounded-lg border border-border text-[12px] font-bold w-full bg-background text-foreground cursor-pointer"
-                    >
-                        <option value="">Tất cả trạng thái</option>
-                        <option value="1">⏳ Chờ duyệt</option>
-                        <option value="2">✔️ Đã duyệt</option>
-                        <option value="3">❌ Từ chối</option>
-                    </select>
-                </div>
-            </div>
-
-            {/* --- MAIN CONTENT CARD --- */}
-            <div className="hrm-card flex-1 flex flex-col min-h-0 overflow-hidden bg-card border border-border rounded-xl shadow-sm">
-                <div className="flex-shrink-0 px-5 py-4 border-b border-border bg-muted/30">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-foreground m-0">Danh Sách Giải Trình</h3>
+            {/* MAIN CONTENT CONTAINER */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto md:overflow-hidden custom-scrollbar bg-background gap-4 pb-20 md:pb-0">
+                {/* --- BỘ LỌC (FILTERS) --- */}
+                <div className="flex flex-col md:flex-row gap-4 p-4 hrm-card bg-card border-border shadow-sm shrink-0">
+                    <div className="flex-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block flex items-center gap-1"><Search size={12} /> Mã Nhân Viên</label>
+                        <input
+                            type="text"
+                            placeholder="Nhập mã NV..."
+                            value={filters.username}
+                            onChange={(e) => { setFilters({ ...filters, username: e.target.value }); setPage(1); }}
+                            className="hrm-input h-9 px-3 bg-background text-foreground rounded-lg border border-border text-[12px] font-bold w-full uppercase"
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block flex items-center gap-1"><Filter size={12} /> Trạng Thái</label>
+                        <select
+                            value={filters.status}
+                            onChange={(e) => { setFilters({ ...filters, status: e.target.value }); setPage(1); }}
+                            className="hrm-input h-9 px-3 rounded-lg border border-border text-[12px] font-bold w-full bg-background text-foreground cursor-pointer"
+                        >
+                            <option value="">Tất cả trạng thái</option>
+                            <option value="1">⏳ Chờ duyệt</option>
+                            <option value="2">✔️ Đã duyệt</option>
+                            <option value="3">❌ Từ chối</option>
+                        </select>
+                    </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar relative bg-card">
+                {/* --- TABLE CONTAINER --- */}
+                <div className="flex-1 shrink-0 md:shrink flex flex-col min-h-[400px] md:min-h-0 md:hrm-card md:bg-card md:border md:border-border md:shadow-sm md:rounded-xl md:overflow-hidden relative">
+                    <div className="hidden md:flex flex-shrink-0 px-5 py-4 border-b border-border bg-muted/30">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-foreground m-0">Danh Sách Giải Trình</h3>
+                    </div>
+
+                    <div className="flex-1 overflow-visible md:overflow-y-auto custom-scrollbar relative w-full bg-card">
                     {isLoading ? (
                         <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
                             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -446,7 +448,7 @@ export default function ExplanationsPage() {
                     )}
                 </div>
 
-                {/* --- PHÂN TRANG --- */}
+                {/* PHÂN TRANG */}
                 {!isLoading && totalPages > 0 && (
                     <div className="flex-none flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-t border-border bg-card">
                         <div className="flex items-center gap-1">
@@ -456,7 +458,7 @@ export default function ExplanationsPage() {
                             <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronRight size={16} /></button>
                             <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsRight size={16} /></button>
                         </div>
-                        <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                             <span>Tổng: <strong className="text-foreground">{totalItems}</strong></span>
                             <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="p-1 border border-border rounded bg-background text-foreground cursor-pointer outline-none">
                                 <option value="15">15 dòng</option>
@@ -466,6 +468,7 @@ export default function ExplanationsPage() {
                         </div>
                     </div>
                 )}
+                </div>
             </div>
 
             {/* ==================================================== */}

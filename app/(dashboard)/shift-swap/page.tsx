@@ -394,34 +394,36 @@ export default function ShiftSwapsPage() {
                 )}
             </div>
 
-            {/* --- BỘ LỌC (FILTERS) --- */}
-            <div className="flex flex-col md:flex-row gap-4 mb-4 p-4 hrm-card bg-card border-border">
-                <div className="flex-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block flex items-center gap-1"><CalendarClock size={12} /> Từ ngày (Ca gốc)</label>
-                    <input type="date" value={filters.start_date} onChange={e => { setFilters({ ...filters, start_date: e.target.value }); setPage(1); }} className="hrm-input h-9 px-3 bg-background text-foreground rounded-lg border border-border text-[12px] font-bold w-full" />
-                </div>
-                <div className="flex-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block flex items-center gap-1"><CalendarClock size={12} /> Đến ngày</label>
-                    <input type="date" value={filters.end_date} onChange={e => { setFilters({ ...filters, end_date: e.target.value }); setPage(1); }} className="hrm-input h-9 px-3 bg-background text-foreground rounded-lg border border-border text-[12px] font-bold w-full" />
-                </div>
-                <div className="flex-1 md:flex-[1.5]">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block flex items-center gap-1"><Filter size={12} /> Trạng Thái</label>
-                    <select value={filters.status} onChange={e => { setFilters({ ...filters, status: e.target.value }); setPage(1); }} className="hrm-input h-9 px-3 rounded-lg border border-border text-[12px] font-bold w-full bg-background text-foreground cursor-pointer">
-                        <option value="">Tất cả trạng thái</option>
-                        <option value="PENDING">⏳ Chờ duyệt</option>
-                        <option value="APPROVED">✔️ Đã duyệt</option>
-                        <option value="REJECTED">❌ Từ chối</option>
-                    </select>
-                </div>
-            </div>
-
-            {/* --- MAIN CONTENT CARD --- */}
-            <div className="hrm-card flex-1 flex flex-col min-h-0 overflow-hidden bg-card border border-border rounded-xl shadow-sm">
-                <div className="flex-shrink-0 px-5 py-4 border-b border-border bg-muted/30">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-foreground m-0">Danh Sách Yêu Cầu</h3>
+            {/* MAIN CONTENT CONTAINER */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto md:overflow-hidden custom-scrollbar bg-background gap-4 pb-20 md:pb-0">
+                {/* --- BỘ LỌC (FILTERS) --- */}
+                <div className="flex flex-col md:flex-row gap-4 p-4 hrm-card bg-card border-border shadow-sm shrink-0">
+                    <div className="flex-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block flex items-center gap-1"><CalendarClock size={12} /> Từ ngày (Ca gốc)</label>
+                        <input type="date" value={filters.start_date} onChange={e => { setFilters({ ...filters, start_date: e.target.value }); setPage(1); }} className="hrm-input h-9 px-3 bg-background text-foreground rounded-lg border border-border text-[12px] font-bold w-full" />
+                    </div>
+                    <div className="flex-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block flex items-center gap-1"><CalendarClock size={12} /> Đến ngày</label>
+                        <input type="date" value={filters.end_date} onChange={e => { setFilters({ ...filters, end_date: e.target.value }); setPage(1); }} className="hrm-input h-9 px-3 bg-background text-foreground rounded-lg border border-border text-[12px] font-bold w-full" />
+                    </div>
+                    <div className="flex-1 md:flex-[1.5]">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block flex items-center gap-1"><Filter size={12} /> Trạng Thái</label>
+                        <select value={filters.status} onChange={e => { setFilters({ ...filters, status: e.target.value }); setPage(1); }} className="hrm-input h-9 px-3 rounded-lg border border-border text-[12px] font-bold w-full bg-background text-foreground cursor-pointer">
+                            <option value="">Tất cả trạng thái</option>
+                            <option value="PENDING">⏳ Chờ duyệt</option>
+                            <option value="APPROVED">✔️ Đã duyệt</option>
+                            <option value="REJECTED">❌ Từ chối</option>
+                        </select>
+                    </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar relative bg-card">
+                {/* --- TABLE CONTAINER --- */}
+                <div className="flex-1 shrink-0 md:shrink flex flex-col min-h-[400px] md:min-h-0 md:hrm-card md:bg-card md:border md:border-border md:shadow-sm md:rounded-xl md:overflow-hidden relative">
+                    <div className="hidden md:flex flex-shrink-0 px-5 py-4 border-b border-border bg-muted/30">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-foreground m-0">Danh Sách Yêu Cầu</h3>
+                    </div>
+
+                    <div className="flex-1 overflow-visible md:overflow-y-auto custom-scrollbar relative w-full bg-card">
                     {isLoading ? (
                         <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
                             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -582,19 +584,19 @@ export default function ShiftSwapsPage() {
                     )}
                 </div>
 
-                {/* --- PHÂN TRANG --- */}
+                {/* PHÂN TRANG */}
                 {!isLoading && totalPages > 0 && (
                     <div className="flex-none flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-t border-border bg-card">
                         <div className="flex items-center gap-1">
-                            <button disabled={page === 1} onClick={() => setPage(1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50"><ChevronsLeft size={16} /></button>
-                            <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50"><ChevronLeft size={16} /></button>
+                            <button disabled={page === 1} onClick={() => setPage(1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsLeft size={16} /></button>
+                            <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronLeft size={16} /></button>
                             <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mx-3">Trang {page} / {totalPages}</span>
-                            <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50"><ChevronRight size={16} /></button>
-                            <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50"><ChevronsRight size={16} /></button>
+                            <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronRight size={16} /></button>
+                            <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsRight size={16} /></button>
                         </div>
-                        <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                             <span>Tổng: <strong className="text-foreground">{totalItems}</strong></span>
-                            <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="p-1 border border-border rounded bg-background text-foreground outline-none">
+                            <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="p-1 border border-border rounded bg-background text-foreground cursor-pointer outline-none">
                                 <option value="15">15 dòng</option>
                                 <option value="30">30 dòng</option>
                                 <option value="50">50 dòng</option>
@@ -602,6 +604,7 @@ export default function ShiftSwapsPage() {
                         </div>
                     </div>
                 )}
+                </div>
             </div>
 
             {/* ==================================================== */}
