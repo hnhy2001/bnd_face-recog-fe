@@ -1,4 +1,5 @@
+import { redirect } from 'next/navigation';
+
 export default function Home() {
-  // Trang này sẽ tự động redirect sang /login qua next.config.ts
-  return null;
+  redirect('/login');
 }

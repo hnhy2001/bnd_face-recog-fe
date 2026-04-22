@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Script from "next/script";
 import {
     ArrowLeft, Loader2, RefreshCcw, ScanFace, CheckCircle, MonitorSmartphone, Server
@@ -14,7 +14,6 @@ const FACE_MAX_SIZE = 0.60;
 
 export default function FaceEnrollPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -22,13 +21,23 @@ export default function FaceEnrollPage() {
     const holdStartTimeRef = useRef<number>(0);
     const lastDetectionRef = useRef<any>(null);
 
-    const [userId, setUserId] = useState(searchParams.get("id") || "");
+    // Khởi tạo state rỗng
+    const [userId, setUserId] = useState("");
     const [deviceType, setDeviceType] = useState("MAIN");
     const [status, setStatus] = useState("ĐANG KHỞI TẠO CAMERA...");
     const [statusColor, setStatusColor] = useState("text-slate-400");
     const [progress, setProgress] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isLibLoaded, setIsLibLoaded] = useState(false);
+
+    // Lấy ID từ localStorage khi giao diện vừa load xong
+    useEffect(() => {
+        const savedUsername = localStorage.getItem("hrm_username");
+        if (savedUsername) {
+            setUserId(savedUsername);
+        }
+        initCamera();
+    }, []);
 
     const initCamera = async () => {
         try {
@@ -63,10 +72,6 @@ export default function FaceEnrollPage() {
         };
         requestAnimationFrame(processFrame);
     };
-
-    useEffect(() => {
-        initCamera();
-    }, []);
 
     const handleResults = (results: any) => {
         if (isProcessing) return;
@@ -186,7 +191,6 @@ export default function FaceEnrollPage() {
     };
 
     return (
-        // SỬA SCROLL: Cố định height, overflow-hidden để ko cuộn
         <div className="h-[100dvh] w-full bg-[#09090b] text-slate-200 font-sans relative flex flex-col items-center py-4 md:py-6 selection:bg-cyan-500/30 overflow-hidden">
             <Script
                 src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js"
@@ -194,7 +198,6 @@ export default function FaceEnrollPage() {
                 onLoad={onScriptLoad}
             />
 
-            {/* HIỆU ỨNG NỀN ĐỘNG: Bừng sáng màu Medical Blue khi quét */}
             <div className={`
                 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
                 w-[600px] h-[600px] md:w-[800px] md:h-[800px] rounded-full blur-[120px] pointer-events-none 
@@ -202,7 +205,6 @@ export default function FaceEnrollPage() {
                 ${progress > 0 ? 'bg-cyan-600/20 scale-110' : 'bg-cyan-900/5 scale-100'}
             `} />
 
-            {/* Nút Quay lại - Góc trái (fixed) */}
             <button
                 onClick={() => router.back()}
                 className="absolute top-4 md:top-6 left-4 md:left-6 flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 backdrop-blur-md rounded-xl text-xs font-bold uppercase tracking-widest transition-all text-slate-300 z-50 shrink-0"
@@ -210,17 +212,14 @@ export default function FaceEnrollPage() {
                 <ArrowLeft size={16} /> <span className="hidden sm:inline">Quay lại</span>
             </button>
 
-            {/* Container Chính - Symmetrical Layout dùng Flex để fit 100% */}
             <main className="w-full max-w-[500px] flex-1 min-h-0 flex flex-col relative z-10 px-4">
 
-                {/* 1. Header Tiêu đề (shrink-0) */}
                 <div className="text-center shrink-0 mb-4 mt-10 md:mt-0">
                     <h1 className="text-lg md:text-xl font-black tracking-[0.25em] text-white uppercase drop-shadow-md">
                         Đăng Ký Khuôn Mặt
                     </h1>
                 </div>
 
-                {/* 2. Thanh Trạng Thái (shrink-0) */}
                 <div className="w-full bg-[#18181b]/80 backdrop-blur-sm border border-zinc-800 rounded-2xl p-4 shadow-lg relative overflow-hidden flex flex-col items-center justify-center shrink-0 mb-4 z-20">
                     <div className="absolute bottom-0 left-0 w-full h-1 bg-zinc-900">
                         <div
@@ -233,7 +232,6 @@ export default function FaceEnrollPage() {
                     </span>
                 </div>
 
-                {/* 3. Camera Viewfinder (TỰ ĐỘNG CO GIÃN THEO MÀN HÌNH - KHÔNG SCROLL) */}
                 <div className="w-full flex-1 min-h-0 relative bg-black rounded-[2rem] overflow-hidden border-2 border-zinc-800/80 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] group mb-4">
                     <video
                         ref={videoRef}
@@ -242,7 +240,6 @@ export default function FaceEnrollPage() {
                         className="w-full h-full object-cover scale-x-[-1]"
                     />
 
-                    {/* Khung Oval Center */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div className={`
                             w-[60%] h-[70%] max-w-[260px] max-h-[340px] rounded-[50%/45%] border-[2px]
@@ -253,7 +250,6 @@ export default function FaceEnrollPage() {
                         `} />
                     </div>
 
-                    {/* Lưới tọa độ ngầm (Grid) & Scanning Line */}
                     {isLibLoaded && !isProcessing && (
                         <>
                             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsIDI1NSwgMjU1LCAwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] pointer-events-none opacity-40" />
@@ -261,7 +257,6 @@ export default function FaceEnrollPage() {
                         </>
                     )}
 
-                    {/* Loading State Overlay */}
                     {(!isLibLoaded || isProcessing) && (
                         <div className="absolute inset-0 bg-[#09090b]/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4 z-20">
                             <Loader2 className="animate-spin text-cyan-500" size={36} />
@@ -272,7 +267,6 @@ export default function FaceEnrollPage() {
                     )}
                 </div>
 
-                {/* 4. Data Form (shrink-0) */}
                 <div className="w-full flex flex-col gap-3 shrink-0 mb-3">
                     <input
                         type="text"
@@ -297,7 +291,6 @@ export default function FaceEnrollPage() {
                     </div>
                 </div>
 
-                {/* 5. Actions Group (shrink-0) */}
                 <div className="w-full flex gap-3 shrink-0 pb-2">
                     <button
                         className="flex-1 h-12 md:h-14 flex items-center justify-center gap-2 bg-[#18181b]/80 backdrop-blur-sm border border-zinc-800 hover:bg-zinc-800 rounded-2xl text-[10px] md:text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-all"

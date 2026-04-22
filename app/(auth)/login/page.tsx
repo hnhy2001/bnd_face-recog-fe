@@ -49,8 +49,17 @@ export default function LoginPage() {
       } else {
         setError(data.detail || "Đăng nhập thất bại!")
       }
-    } catch (err) {
-      setError("Lỗi kết nối hệ thống!")
+    } catch (err: any) {
+      // Tạo chuỗi curl để debug
+      const curlDebug = `curl -X POST '${API_BASE_URL}/api/login' \\
+        -H 'Content-Type: application/json' \\
+        -d '${JSON.stringify({ username: username.trim().toUpperCase(), password: '***' })}'`;
+
+      console.error("Lỗi chi tiết:", err);
+
+      // Hiển thị cả thông báo lỗi hệ thống và lệnh curl để bạn copy
+      setError(`Lỗi kết nối! \n\nDebug: ${curlDebug} \n\nMessage: ${err.message}`);
+
     } finally {
       setLoading(false)
     }

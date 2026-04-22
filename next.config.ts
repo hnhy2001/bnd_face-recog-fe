@@ -1,48 +1,28 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable standalone output cho Docker
-  output: 'standalone',
-  
-  // Tắt type check khi build (để build nhanh hơn)
+  // 1. THAY ĐỔI QUAN TRỌNG: Phải dùng 'export' để xuất ra file tĩnh cho mobile
+  output: 'export',
+
+  // 2. THÊM MỚI: Bắt buộc tắt tối ưu ảnh vì tính năng này cần Node.js server
+  images: {
+    unoptimized: true,
+  },
+
+  // Giữ nguyên các config bỏ qua lỗi của bạn
   typescript: {
     ignoreBuildErrors: true,
   },
-  
-  // Tắt ESLint check khi build
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  
-  // Tắt logging của Turbopack
+  // eslint: {
+  //   ignoreDuringBuilds: true,
+  // },
   logging: {
     fetches: {
       fullUrl: false,
     },
   },
-  async redirects() {
-    return [
-      {
-        source: '/',
-        destination: '/login',
-        permanent: false, // Temporary redirect (307)
-      },
-    ];
-  },
-  async rewrites() {
-    return [
-      {
-        // Khi Frontend gọi đến bất cứ gì bắt đầu bằng /api
-        source: '/api/:path*',
-        // Nó sẽ âm thầm chuyển hướng sang Backend thật của bạn
-        destination: 'https://hrm.benhnhietdoi.vn/api/:path*', 
-      },
-      {
-        // Proxy cho ảnh và static files
-        source: '/data/:path*',
-        destination: 'https://hrm.benhnhietdoi.vn/data/:path*',
-      },
-    ];
-  },
+
+  // 3. XÓA BỎ redirects() VÀ rewrites()
+  // Lộ trình tĩnh (export) không hỗ trợ 2 hàm này.
 };
 
 export default nextConfig;

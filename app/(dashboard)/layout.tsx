@@ -107,7 +107,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { id: "nav-faces", label: "QUẢN LÝ AI CORE", href: "/faces", icon: BrainCircuit, roles: ["admin"] },
     { id: "nav-tb-online", label: "MỞ TB CHẤM CÔNG", href: "/tb-cham-cong", icon: Camera, roles: ["admin", "manager"] },
     { id: "nav-tb-local", label: "MỞ TB CHẤM CÔNG LOCAL", href: "/tb-cham-cong-local", icon: Camera, roles: ["admin", "manager"] },
-    { id: "nav-user_info", label: "THÔNG TIN NHÂN VIÊN", href: "/user_info", icon: UserCircle, roles: ["admin", "manager", "user"] },
+    { id: "nav-user_info", label: "THÔNG TIN NHÂN VIÊN", href: "/profile", icon: UserCircle, roles: ["admin", "manager", "user"] },
     { id: "nav-wifi", label: "CẤU HÌNH WIFI", href: "/wifi", icon: Wifi, roles: ["admin"] },
   ];
 

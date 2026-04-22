@@ -11,6 +11,9 @@ import {
     Clock, XCircle, FileWarning
 } from "lucide-react";
 
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+
 // ==========================================
 // TYPES & INTERFACES
 // ==========================================
@@ -31,7 +34,35 @@ interface AttendanceRecord {
     is_fraud: boolean;
     fraud_note?: string;
     is_explained: boolean;
+    department_name?: string;
 }
+
+// --- Hàm map trạng thái sang text ---
+const getStatusText = (status: number) => {
+    switch (status) {
+        case 1: return "Đúng giờ";
+        case 2: return "Đi muộn";
+        case 3: return "Về sớm";
+        case 6: return "Muộn&Sớm";
+        case 0: return "Vắng mặt";
+        case 4: return "Nghỉ phép";
+        case 5: return "Nghỉ KL";
+        case 7: return "Đang có mặt";
+        case 8: return "Chưa lịch";
+        case 9: return "CĐ 7h";
+        case 10: return "Quên vào";
+        case 11: return "Quên ra";
+        case 12: return "Nghỉ CĐ";
+        case 13: return "Đi học";
+        case 14: return "Công tác";
+        case 15: return "Nghỉ bù";
+        case 16: return "Thai sản";
+        case 17: return "Ma chay";
+        case 18: return "Con KH";
+        case 19: return "Kết hôn";
+        default: return "Không XĐ";
+    }
+};
 
 export default function AttendanceLogPage() {
     const router = useRouter();
@@ -69,6 +100,205 @@ export default function AttendanceLogPage() {
     const [isSubmittingFraud, setIsSubmittingFraud] = useState(false);
     const [isSubmittingExplain, setIsSubmittingExplain] = useState(false);
     const [detailDrawer, setDetailDrawer] = useState({ isOpen: false, username: "", date: "", fullName: "" });
+    const [isExporting, setIsExporting] = useState(false);
+
+    // --- Hàm xử lý xuất Excel ---
+    const handleExportExcelAdvanced = async () => {
+        if (!filteredData || filteredData.length === 0) {
+            alert("Không có dữ liệu để xuất!");
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            // Lấy danh sách toàn bộ nhân viên để map phòng ban
+            const token = localStorage.getItem("hrm_token");
+            let userDeptMap: Record<string, string> = {};
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/employees?page=1&size=10000`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const items = data.items || data;
+                    if (Array.isArray(items)) {
+                        items.forEach((emp: any) => {
+                            userDeptMap[emp.username] = emp.department_name || "Chưa phân phòng";
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error("No employee data fetched for export", err);
+            }
+
+            const workbook = new ExcelJS.Workbook();
+            workbook.creator = 'HRM System';
+            workbook.created = new Date();
+
+            // 1. Tạo mảng Ngày
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const dateList: string[] = [];
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                dateList.push(new Date(d).toISOString().split('T')[0]);
+            }
+
+            // 2. Định nghĩa các cột Tổng kết ở cuối bảng (Đã gom thành 3 nhóm chính)
+            const summaryHeaders = [
+                'Tổng số ca',
+                'Hợp lệ (ca)', 'Nghỉ (ca)', 'Vi phạm (ca)'
+            ];
+
+            // 3. Nhóm dữ liệu theo Phòng Ban
+            const groupedByDept = filteredData.reduce((acc: any, curr: any) => {
+                const dept = userDeptMap[curr.username] || "Chưa phân phòng";
+                if (!acc[dept]) acc[dept] = {};
+                if (!acc[dept][curr.username]) {
+                    acc[dept][curr.username] = {
+                        fullName: curr.full_name,
+                        records: []
+                    };
+                }
+                acc[dept][curr.username].records.push(curr);
+                return acc;
+            }, {});
+
+            Object.keys(groupedByDept).forEach(deptName => {
+                const sheet = workbook.addWorksheet(deptName);
+                const users = groupedByDept[deptName];
+
+                // Tính tổng số cột để merge Title
+                const totalColumns = 3 + dateList.length + summaryHeaders.length;
+                sheet.mergeCells(1, 1, 1, totalColumns);
+                const titleCell = sheet.getCell(1, 1);
+
+                const formatDt = (dtStr: string) => dtStr.split('-').reverse().join('/');
+                titleCell.value = `BÁO CÁO CHẤM CÔNG - TỪ ${formatDt(startDate)} ĐẾN ${formatDt(endDate)}`;
+                titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF00524C' } };
+                titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+                titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2EFDA' } };
+                sheet.getRow(1).height = 30;
+
+                sheet.addRow([]); // Dòng trống
+
+                // --- Row Header ---
+                const headerRowData = [
+                    'STT', 'Mã NV', 'Họ Tên',
+                    ...dateList.map(d => d.split('-').reverse().slice(0, 2).join('/')),
+                    ...summaryHeaders
+                ];
+                const headerRow = sheet.addRow(headerRowData);
+
+                headerRow.eachCell((cell) => {
+                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                });
+
+                // Set độ rộng cột
+                sheet.getColumn(1).width = 5;
+                sheet.getColumn(2).width = 12;
+                sheet.getColumn(3).width = 25;
+                // Cột ngày
+                for (let i = 0; i < dateList.length; i++) {
+                    sheet.getColumn(4 + i).width = 22;
+                }
+                // Cột tổng kết
+                for (let i = 0; i < summaryHeaders.length; i++) {
+                    sheet.getColumn(4 + dateList.length + i).width = 16;
+                }
+
+                let stt = 1;
+                Object.keys(users).forEach(username => {
+                    const userData = users[username];
+
+                    // Khởi tạo bộ đếm đã được gom nhóm
+                    let uStats = {
+                        lateMin: 0,
+                        earlyMin: 0,
+                        totalShifts: 0,
+                        validCount: 0,       // Hợp lệ
+                        leaveCount: 0,       // Nghỉ
+                        violationCount: 0    // Vi phạm
+                    };
+
+                    const dateValues = dateList.map(date => {
+                        const dayRecords = userData.records.filter((r: any) => r.date === date);
+                        if (dayRecords.length > 0) {
+                            dayRecords.forEach((r: any) => {
+                                // Cộng phút & tổng ca
+                                uStats.lateMin += r.late_minutes || 0;
+                                uStats.earlyMin += r.early_minutes || 0;
+                                uStats.totalShifts += 1;
+
+                                // Phân loại vào 3 nhóm chính
+                                const s = r.status;
+                                if ([1, 7, 9, 13, 14, 15].includes(s)) {
+                                    uStats.validCount += 1;
+                                } else if ([4, 5, 12, 16, 17, 18, 19].includes(s)) {
+                                    uStats.leaveCount += 1;
+                                } else if ([0, 2, 3, 6, 8, 10, 11].includes(s)) {
+                                    uStats.violationCount += 1;
+                                }
+                            });
+
+                            // Chuỗi hiển thị trong từng ô ngày
+                            return dayRecords.map((r: any) => {
+                                const shift = r.shift_display_name || r.shift_code || '---';
+                                const statusTxt = getStatusText(r.status);
+                                return `[${shift}: ${statusTxt}]`;
+                            }).join(' | ');
+                        }
+                        return '-';
+                    });
+
+                    // Hàm bọc dấu gạch ngang nếu giá trị là 0 cho đẹp mắt
+                    const fmtVal = (val: number) => val > 0 ? val : '-';
+
+                    const rowData = [
+                        stt++,
+                        username,
+                        userData.fullName,
+                        ...dateValues,
+                        fmtVal(uStats.totalShifts),
+                        fmtVal(uStats.validCount),
+                        fmtVal(uStats.leaveCount),
+                        fmtVal(uStats.violationCount)
+                    ];
+
+                    const dataRow = sheet.addRow(rowData);
+
+                    dataRow.eachCell((cell, colNumber) => {
+                        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        cell.alignment = {
+                            vertical: 'middle',
+                            horizontal: colNumber > 3 ? 'center' : 'left', // Căn giữa cho ngày & số liệu
+                            wrapText: true
+                        };
+
+                        // (Tùy chọn) Tô màu nhẹ cho 3 cột tổng kết để dễ nhìn
+                        if (colNumber === 4 + dateList.length + 1) { // Cột Hợp lệ (Màu xanh)
+                            cell.font = { color: { argb: 'FF059669' }, bold: true };
+                        } else if (colNumber === 4 + dateList.length + 2) { // Cột Nghỉ (Màu xanh dương)
+                            cell.font = { color: { argb: 'FF0284C7' }, bold: true };
+                        } else if (colNumber === 4 + dateList.length + 3) { // Cột Vi phạm (Màu đỏ)
+                            cell.font = { color: { argb: 'FFDC2626' }, bold: true };
+                        }
+                    });
+                });
+            });
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            saveAs(new Blob([buffer]), `Bao_Cao_Cham_Cong_${startDate}_den_${endDate}.xlsx`);
+
+        } catch (error) {
+            console.error("Lỗi xuất Excel:", error);
+            alert("Có lỗi xảy ra khi tạo báo cáo.");
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     // ==========================================
     // INIT & FETCH DATA
@@ -113,7 +343,7 @@ export default function AttendanceLogPage() {
         setIsLoading(true);
         try {
             const token = localStorage.getItem("hrm_token");
-            const res = await fetch(`https://hrm.benhnhietdoi.vn/api/monthly-records?startDate=${startDate}&endDate=${endDate}`, {
+            const res = await fetch(`${API_BASE_URL}/api/monthly-records?startDate=${startDate}&endDate=${endDate}`, {
                 method: "GET",
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -183,7 +413,12 @@ export default function AttendanceLogPage() {
     // TÍNH THỐNG KÊ
     // ==========================================
     const stats = useMemo(() => {
-        let s = { total: filteredData.length, present: 0, late: 0, early: 0, lateEarly: 0, absent: 0, leave: 0, unpaid: 0, inProgress: 0, noSchedule: 0, sevenHours: 0 };
+        let s = {
+            total: filteredData.length, present: 0, late: 0, early: 0, lateEarly: 0,
+            absent: 0, leave: 0, unpaid: 0, inProgress: 0, noSchedule: 0, sevenHours: 0,
+            forgotIn: 0, forgotOut: 0, lCheDo: 0, lDiHoc: 0, lCongTac: 0, lNghiBu: 0,
+            lThaiSan: 0, lMaChay: 0, lConKH: 0, lKetHon: 0
+        };
         filteredData.forEach(i => {
             if (i.status === 1) s.present++;
             else if (i.status === 2) s.late++;
@@ -195,6 +430,16 @@ export default function AttendanceLogPage() {
             else if (i.status === 7) s.inProgress++;
             else if (i.status === 8) s.noSchedule++;
             else if (i.status === 9) s.sevenHours++;
+            else if (i.status === 10) s.forgotIn++;
+            else if (i.status === 11) s.forgotOut++;
+            else if (i.status === 12) s.lCheDo++;
+            else if (i.status === 13) s.lDiHoc++;
+            else if (i.status === 14) s.lCongTac++;
+            else if (i.status === 15) s.lNghiBu++;
+            else if (i.status === 16) s.lThaiSan++;
+            else if (i.status === 17) s.lMaChay++;
+            else if (i.status === 18) s.lConKH++;
+            else if (i.status === 19) s.lKetHon++;
         });
         return s;
     }, [filteredData]);
@@ -221,6 +466,16 @@ export default function AttendanceLogPage() {
             case 7: return <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-600 border border-blue-500/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit"><Clock size={12} /> Đang có mặt</span>;
             case 8: return <span className="px-2 py-1 rounded bg-slate-100 text-slate-500 border border-slate-200 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit">➖ Chưa có lịch</span>;
             case 9: return <span className="px-2 py-1 rounded bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit"><Clock size={12} /> Chế độ 7h</span>;
+            case 10: return <span className="px-2 py-1 rounded bg-amber-100 text-amber-700 border border-amber-200 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit">❓ Quên vào</span>;
+            case 11: return <span className="px-2 py-1 rounded bg-amber-100 text-amber-700 border border-amber-200 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit">❓ Quên ra</span>;
+            case 12: return <span className="px-2 py-1 rounded bg-sky-500 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit">🏖️ Nghỉ chế độ</span>;
+            case 13: return <span className="px-2 py-1 rounded bg-sky-500 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit">📚 Đi học</span>;
+            case 14: return <span className="px-2 py-1 rounded bg-sky-500 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit">💼 Công tác</span>;
+            case 15: return <span className="px-2 py-1 rounded bg-sky-500 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit">🔄 Nghỉ bù</span>;
+            case 16: return <span className="px-2 py-1 rounded bg-sky-500 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit">👶 Thai sản</span>;
+            case 17: return <span className="px-2 py-1 rounded bg-sky-500 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit">⚫ Ma chay</span>;
+            case 18: return <span className="px-2 py-1 rounded bg-sky-500 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit">💍 Con kết hôn</span>;
+            case 19: return <span className="px-2 py-1 rounded bg-sky-500 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit">💒 Kết hôn</span>;
             default: return <span className="px-2 py-1 rounded bg-red-100 text-red-600 border border-red-200 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-fit"><XCircle size={12} /> Vắng mặt</span>;
         }
     };
@@ -235,7 +490,8 @@ export default function AttendanceLogPage() {
 
         if (item.username !== currentUsername) return true; // Nhìn lịch người khác
         if (item.is_explained) return true;
-        if ([1, 4, 5, 7, 8, 9].includes(item.status)) return true; // Trạng thái ko cần giải trình
+        const nonExplainableStatuses = [1, 4, 5, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19];
+        if (nonExplainableStatuses.includes(item.status)) return true;
 
         if (item.date) {
             const recordDate = new Date(item.date + 'T00:00:00');
@@ -350,6 +606,16 @@ export default function AttendanceLogPage() {
                             <option value="7">Đang có mặt</option>
                             <option value="8">Chưa có lịch</option>
                             <option value="9">Chế độ 7h</option>
+                            <option value="10">❓ Quên vào</option>
+                            <option value="11">❓ Quên ra</option>
+                            <option value="12">🏖️ Nghỉ chế độ</option>
+                            <option value="13">📚 Đi học</option>
+                            <option value="14">💼 Công tác</option>
+                            <option value="15">🔄 Nghỉ bù</option>
+                            <option value="16">👶 Thai sản</option>
+                            <option value="17">⚫ Ma chay</option>
+                            <option value="18">💍 Con kết hôn</option>
+                            <option value="19">💒 Kết hôn</option>
                         </select>
                     </div>
                     {currentUserRole !== "user" && (
@@ -366,13 +632,14 @@ export default function AttendanceLogPage() {
                         <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Đến ngày</label>
                         <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="hrm-input h-10 px-3 bg-background text-foreground rounded-lg border border-border text-[13px] outline-none font-mono" />
                     </div>
-                    <button onClick={handlePrint} className="h-10 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 transition-all shrink-0">
-                        <Printer size={16} /> Xuất B/C
+                    <button onClick={handleExportExcelAdvanced} disabled={isExporting} className={`h-10 px-4 rounded-lg font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 transition-all shrink-0 ${isExporting ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-80' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+                        {isExporting ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div> : <Printer size={16} />}
+                        {isExporting ? "Đang xử lý..." : "Xuất B/C"}
                     </button>
                 </div>
 
                 {/* STATS GRID */}
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-11 gap-2 shrink-0">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] gap-2 shrink-0">
                     {[
                         { label: "Tổng số ca", value: stats.total, colorClass: "text-blue-500" },
                         { label: "Đúng giờ", value: stats.present, colorClass: "text-green-500" },
@@ -385,10 +652,26 @@ export default function AttendanceLogPage() {
                         { label: "Đang có mặt", value: stats.inProgress, colorClass: "text-blue-600" },
                         { label: "Chưa có lịch", value: stats.noSchedule, colorClass: "text-slate-400" },
                         { label: "Chế độ 7h", value: stats.sevenHours, colorClass: "text-indigo-600" },
+
+                        // --- CÁC TRẠNG THÁI MỚI BỔ SUNG ---
+                        { label: "Quên vào", value: stats.forgotIn, colorClass: "text-amber-700" },
+                        { label: "Quên ra", value: stats.forgotOut, colorClass: "text-amber-700" },
+                        { label: "Nghỉ chế độ", value: stats.lCheDo, colorClass: "text-sky-500" },
+                        { label: "Đi học", value: stats.lDiHoc, colorClass: "text-sky-600" },
+                        { label: "Công tác", value: stats.lCongTac, colorClass: "text-indigo-600" },
+                        { label: "Nghỉ bù", value: stats.lNghiBu, colorClass: "text-violet-500" },
+                        { label: "Thai sản", value: stats.lThaiSan, colorClass: "text-pink-500" },
+                        { label: "Ma chay", value: stats.lMaChay, colorClass: "text-slate-600" },
+                        { label: "Con KH", value: stats.lConKH, colorClass: "text-rose-500" },
+                        { label: "Kết hôn", value: stats.lKetHon, colorClass: "text-rose-600" },
                     ].map((stat, idx) => (
                         <div key={idx} className="hrm-card bg-card border-border p-3 flex flex-col items-center justify-center text-center shadow-sm hover:-translate-y-1 transition-transform">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1 line-clamp-1">{stat.label}</span>
-                            <span className={`text-xl font-black leading-none ${stat.colorClass}`}>{stat.value}</span>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1 line-clamp-1" title={stat.label}>
+                                {stat.label}
+                            </span>
+                            <span className={`text-xl font-black leading-none ${stat.colorClass}`}>
+                                {stat.value}
+                            </span>
                         </div>
                     ))}
                 </div>

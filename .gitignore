@@ -33,3 +33,27 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ==============================
+# BỔ SUNG CHO CAPACITOR & ANDROID
+# ==============================
+
+# File ứng dụng đã đóng gói (Tuyệt đối không push)
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Thư mục build và cấu hình tạm của Android
+android/app/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+
+# Thư mục build và cấu hình tạm của iOS (nếu sau này bạn làm)
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/build/
+ios/App/Pods/
+ios/App/Podfile.lock
+*.xcworkspace

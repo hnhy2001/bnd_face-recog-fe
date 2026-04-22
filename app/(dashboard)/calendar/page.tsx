@@ -129,12 +129,9 @@ export default function PersonalCalendarPage() {
             if (resTypes.ok) setLeaveTypes(await resTypes.json());
             if (resMgrs.ok) {
                 const mgrData: Employee[] = await resMgrs.json();
-
-                // Ép kiểu (as Employee[]) để TypeScript hiểu đúng định dạng
                 const uniqueManagers = Array.from(
                     new Map(mgrData.map(m => [m.username, m])).values()
                 ) as Employee[];
-
                 setManagers(uniqueManagers);
             }
 
@@ -255,7 +252,7 @@ export default function PersonalCalendarPage() {
     }, [fetchCalendar]);
 
     // ==========================================
-    // HELPERS & UI LOGIC
+    // HELPERS & UI LOGIC (ĐÃ CẬP NHẬT TRẠNG THÁI MỚI)
     // ==========================================
     const isViewingOtherUser = selectedUsername !== currentUser.username;
 
@@ -268,7 +265,17 @@ export default function PersonalCalendarPage() {
     const calcExplainDisabled = (rec: ShiftRecord) => {
         if (isViewingOtherUser || rec.is_explained) return true;
         const status = rec.status ?? null;
-        if (status === 1 || status === 7 || status === 4 || status === 5) return true;
+
+        // CHÚ Ý: Cập nhật điều kiện khóa giải trình với các trạng thái từ 12 -> 19
+        if (
+            status === 1 ||
+            status === 7 ||
+            status === 4 ||
+            status === 5 ||
+            (status !== null && status >= 12 && status <= 19)
+        ) {
+            return true;
+        }
 
         if (!rec.date) return true;
         const thisDate = new Date(rec.date + 'T00:00:00');
@@ -280,15 +287,31 @@ export default function PersonalCalendarPage() {
         return false;
     };
 
+    // Cập nhật mapping danh sách trạng thái mới từ HTML qua Tailwind UI
     const getStatusInfo = (status: number | undefined, isWeekend: boolean) => {
         if (status === 1) return { label: '✔️ Đúng giờ', colorClass: 'text-green-600 bg-green-50 border-green-200 dark:bg-green-900/20' };
-        if (status === 2 || status === 3 || status === 6) return { label: '⚠️ Muộn/Sớm', colorClass: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20' };
+        if (status === 2) return { label: '⚠️ Đi muộn', colorClass: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20' };
+        if (status === 3) return { label: '⚠️ Về sớm', colorClass: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20' };
+        if (status === 6) return { label: '⚠️ Muộn & Sớm', colorClass: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20' };
         if (status === 0) return { label: '❌ Vắng mặt', colorClass: 'text-destructive bg-destructive/10 border-destructive/20' };
         if (status === 4) return { label: '📅 Nghỉ phép', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
         if (status === 5) return { label: '📅 Nghỉ KL', colorClass: 'text-muted-foreground bg-muted border-border' };
         if (status === 7) return { label: '⚡ Đang có mặt', colorClass: 'text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/20' };
         if (status === 8) return { label: '➖ Chưa có lịch', colorClass: 'text-muted-foreground bg-muted border-border' };
         if (status === 9) return { label: '⏱️ Chế độ 7h', colorClass: 'text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/20' };
+
+        // MÃ TRẠNG THÁI MỚI TỪ HTML
+        if (status === 10) return { label: '❓ Quên vào', colorClass: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20' };
+        if (status === 11) return { label: '❓ Quên ra', colorClass: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20' };
+        if (status === 12) return { label: '🏖️ Nghỉ chế độ', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
+        if (status === 13) return { label: '📚 Đi học', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
+        if (status === 14) return { label: '💼 Công tác', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
+        if (status === 15) return { label: '🔄 Nghỉ bù', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
+        if (status === 16) return { label: '👶 Thai sản', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
+        if (status === 17) return { label: '⚫ Ma chay', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
+        if (status === 18) return { label: '💍 Con kết hôn', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
+        if (status === 19) return { label: '💒 Kết hôn', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
+
         if (isWeekend) return { label: '🌿 Nghỉ cuối tuần', colorClass: 'text-green-700 bg-green-50 border-green-200 italic dark:bg-green-900/20' };
         return { label: '— Chưa có dữ liệu', colorClass: 'text-muted-foreground bg-muted/50 border-border italic' };
     };
@@ -400,14 +423,12 @@ export default function PersonalCalendarPage() {
                         {/* Custom Dropdown Nhân Viên */}
                         <div className="flex items-center gap-2 flex-1 sm:min-w-[280px] max-w-full" ref={dropdownRef}>
                             <User className="w-4 h-4 text-muted-foreground shrink-0" />
-                            {/* Thêm min-w-0 vào đây để khắc phục lỗi tràn Flexbox */}
                             <div className="relative flex-1 min-w-0">
                                 <button
                                     type="button"
                                     onClick={() => setIsEmpDropdownOpen(!isEmpDropdownOpen)}
                                     className="hrm-input flex items-center justify-between h-10 px-3 bg-background text-foreground rounded-lg border border-border text-[13px] font-bold w-full text-left shadow-sm overflow-hidden"
                                 >
-                                    {/* Thêm block và truncate để chữ dài tự biến thành dấu ... */}
                                     <span className="truncate pr-2 block">
                                         {selectedEmpObj ? `${selectedEmpObj.full_name} (${selectedEmpObj.username})` : "-- Chọn nhân viên --"}
                                     </span>
@@ -415,7 +436,6 @@ export default function PersonalCalendarPage() {
                                 </button>
 
                                 {isEmpDropdownOpen && (
-                                    /* Sửa lại popup: min-w-full w-max để nó có thể rộng hơn cái nút nếu tên quá dài, thêm ring-1 để viền nổi bật */
                                     <div className="absolute top-[calc(100%+6px)] left-0 min-w-full w-max max-w-[340px] bg-card border border-border rounded-xl shadow-lg z-[100] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100 ring-1 ring-foreground/5">
                                         <div className="p-2 border-b border-border bg-muted/20 flex items-center gap-2 shrink-0">
                                             <Search className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -497,16 +517,16 @@ export default function PersonalCalendarPage() {
                             <span className="text-[11px] font-bold uppercase tracking-widest">Đang tải dữ liệu...</span>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-7 gap-1.5 auto-rows-[minmax(60px,auto)] md:auto-rows-[minmax(150px,auto)] min-h-[500px]">
+                        <div className="grid grid-cols-7 gap-1 md:gap-1.5 auto-rows-max md:auto-rows-[minmax(150px,auto)] md:min-h-[500px]">
                             {/* Empty days offsets */}
                             {Array.from({ length: startOffset }).map((_, i) => (
-                                <div key={`empty-${i}`} className="bg-transparent rounded-lg border border-transparent"></div>
+                                <div key={`empty-${i}`} className="bg-transparent rounded-xl border border-transparent aspect-square md:aspect-auto"></div>
                             ))}
 
                             {/* Actual Days */}
                             {calendarDays.map((dayInfo) => {
                                 const hasFullDayLeave = dayInfo.leaves.some(lv => lv.session === 'Cả ngày');
-                                const bgClass = dayInfo.isToday ? "bg-primary/5 ring-2 ring-primary border-transparent"
+                                const bgClass = dayInfo.isToday ? "bg-primary/5 ring-1 md:ring-2 ring-primary border-transparent"
                                     : dayInfo.isHoliday ? "bg-destructive/5 border-destructive/20"
                                         : dayInfo.leaves.length > 0 ? "bg-sky-500/5 border-sky-500/20"
                                             : dayInfo.isWeekend ? "bg-muted/30 border-border"
@@ -516,16 +536,17 @@ export default function PersonalCalendarPage() {
                                     <div
                                         key={dayInfo.dateStr}
                                         onClick={() => window.innerWidth <= 768 && setActiveMobileSheet(dayInfo)}
-                                        className={`p-1.5 md:p-2 border rounded-xl flex flex-col gap-1 transition-colors relative overflow-hidden cursor-pointer md:cursor-default min-h-[60px] md:min-h-[130px] ${bgClass}`}
+                                        className={`p-1 md:p-2 border rounded-xl flex flex-col items-center md:items-stretch justify-center md:justify-start gap-0.5 md:gap-1 transition-colors relative overflow-hidden cursor-pointer md:cursor-default aspect-square md:aspect-auto md:min-h-[130px] ${bgClass}`}
                                     >
-                                        <div className="flex justify-between items-start mb-1 shrink-0">
-                                            <span className={`text-[12px] md:text-sm font-black ${dayInfo.isToday ? 'bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center rounded-full' : 'text-foreground'}`}>
+                                        {/* Ngày: Mobile căn giữa, Desktop nằm góc */}
+                                        <div className="flex justify-center md:justify-between items-start mb-0 md:mb-1 shrink-0 w-full">
+                                            <span className={`text-[12px] md:text-sm font-black flex items-center justify-center ${dayInfo.isToday ? 'bg-primary text-primary-foreground w-6 h-6 md:w-6 md:h-6 rounded-full' : 'text-foreground'}`}>
                                                 {dayInfo.day}
                                             </span>
                                         </div>
 
-                                        {/* Mobile Dots */}
-                                        <div className="md:hidden flex gap-1 justify-center mt-1 shrink-0">
+                                        {/* Mobile Dots - Căn giữa ở dưới ngày */}
+                                        <div className="md:hidden flex flex-wrap gap-1 justify-center mt-0.5 shrink-0 max-w-[90%]">
                                             {dayInfo.isHoliday && <div className="w-1.5 h-1.5 rounded-full bg-destructive"></div>}
                                             {dayInfo.leaves.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-sky-500"></div>}
                                             {dayInfo.records.map((r, i) => (
@@ -627,8 +648,6 @@ export default function PersonalCalendarPage() {
             {activeDrawer && <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100] transition-opacity" onClick={() => setActiveDrawer(null)} />}
 
             <div className={`fixed top-0 right-0 bottom-0 w-full max-w-[450px] bg-card shadow-2xl z-[101] transform transition-transform duration-300 ease-in-out flex flex-col ${activeDrawer ? "translate-x-0" : "translate-x-full"} md:border-l border-border`}>
-
-                {/* HEADER - Bỏ viền dưới */}
                 <div className="flex-shrink-0 flex items-center justify-between p-5 pb-2">
                     <h3 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
                         {activeDrawer === "LEAVE" ? <><Plane className="text-primary w-5 h-5" /> Đăng ký nghỉ</> : <><FileText className="text-primary w-5 h-5" /> Viết Giải Trình</>}
@@ -638,7 +657,6 @@ export default function PersonalCalendarPage() {
                     </button>
                 </div>
 
-                {/* BODY - Chỉnh lại padding để liền mạch */}
                 <div className="flex-1 overflow-y-auto px-5 pt-3 pb-5 custom-scrollbar">
                     {activeDrawer === "LEAVE" && (
                         <form id="leaveForm" onSubmit={submitLeave} className="flex flex-col gap-4">
@@ -730,7 +748,6 @@ export default function PersonalCalendarPage() {
                     )}
                 </div>
 
-                {/* FOOTER - Bỏ viền trên, thêm shadow nhẹ ngược lên */}
                 <div className="flex-shrink-0 p-5 pt-3 bg-card flex gap-3 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
                     <button type="button" onClick={() => setActiveDrawer(null)} className="flex-1 h-12 bg-muted/50 text-foreground font-bold uppercase tracking-widest text-[11px] rounded-xl hover:bg-muted transition-colors border border-border">
                         Hủy
