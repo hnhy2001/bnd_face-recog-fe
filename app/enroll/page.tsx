@@ -36,11 +36,20 @@ export default function FaceRegistration() {
     const lastDetection = useRef<any>(null);
     const animationFrameId = useRef<number>(0);
 
+    // LOGIC LẤY ID ĐÃ ĐƯỢC ĐỒNG BỘ VỚI ENROLL.HTML
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const storedUsername = localStorage.getItem('hrm_username');
-            if (storedUsername) {
-                setUserId(storedUsername.toUpperCase());
+            // 1. Ưu tiên lấy từ URL Params (id hoặc userid)
+            const urlParams = new URLSearchParams(window.location.search);
+            const paramId = urlParams.get('id') || urlParams.get('userid');
+
+            // 2. Lấy từ localStorage với key mới hrm_user_id
+            const storedUserId = localStorage.getItem('hrm_user_id');
+
+            if (paramId) {
+                setUserId(paramId.toUpperCase());
+            } else if (storedUserId) {
+                setUserId(storedUserId.toUpperCase());
             }
         }
     }, []);
@@ -173,13 +182,13 @@ export default function FaceRegistration() {
                 const apiEndpoint = deviceType === 'IPAD' ? '/register_ipad' : '/register';
                 response = await fetch(apiEndpoint, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', "ngrok-skip-browser-warning": "true" },
                     body: JSON.stringify({ user_id: idToProcess, image_base64: faceBase64 })
                 });
             } else {
                 response = await fetch(`/unregister`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', "ngrok-skip-browser-warning": "true" },
                     body: JSON.stringify({ user_id: idToProcess })
                 });
             }
@@ -234,6 +243,7 @@ export default function FaceRegistration() {
         animationFrameId.current = requestAnimationFrame(processVideoFrame);
     };
 
+    // GIỮ NGUYÊN LOGIC XIN QUYỀN CAMERA (CAPACITOR + NAVIGATOR)
     useEffect(() => {
         const startCamera = async () => {
             try {
@@ -317,9 +327,8 @@ export default function FaceRegistration() {
             let isValid = true;
             let currentWarning = "";
 
-            const currentUserId = document.getElementById("userIdInput") as HTMLInputElement;
-
-            if (!currentUserId || !currentUserId.value.trim()) {
+            // Kiểm tra ID trực tiếp từ state thay vì lấy từ input element
+            if (!userId.trim()) {
                 isValid = false;
                 currentWarning = "VUI LÒNG NHẬP MÃ NHÂN VIÊN ĐỂ BẮT ĐẦU";
             } else if (!isCentered) {
