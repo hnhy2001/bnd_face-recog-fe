@@ -31,7 +31,7 @@ export default function LoginPage() {
       // Trong hàm handleLogin
       const res = await fetch(`${API_BASE_URL}/api/login`, { // Trình duyệt SẼ HIỆN gọi đến 3000 (đúng ý đồ)
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', "ngrok-skip-browser-warning": "true" },
         body: JSON.stringify({
           username: username.trim().toUpperCase(),
           password: password
@@ -45,6 +45,7 @@ export default function LoginPage() {
         localStorage.setItem("hrm_role", data.role)
         localStorage.setItem("hrm_name", data.full_name)
         localStorage.setItem("hrm_username", data.username)
+        localStorage.setItem("hrm_user_id", data.user_id)
         router.push("/dashboard")
       } else {
         setError(data.detail || "Đăng nhập thất bại!")

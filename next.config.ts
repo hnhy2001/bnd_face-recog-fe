@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // 1. THAY ĐỔI QUAN TRỌNG: Phải dùng 'export' để xuất ra file tĩnh cho mobile
-  output: 'export',
+  // output: 'export',
+  output: 'standalone',
 
   // 2. THÊM MỚI: Bắt buộc tắt tối ưu ảnh vì tính năng này cần Node.js server
   images: {

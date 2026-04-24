@@ -56,7 +56,7 @@ export default function DashboardPage() {
         if (!token) return
 
         try {
-            const statsRes = await fetch(`${API_BASE_URL}/api/stats`, { headers: { "Authorization": `Bearer ${token}` } })
+            const statsRes = await fetch(`${API_BASE_URL}/api/stats`, { headers: { "Authorization": `Bearer ${token}`, "ngrok-skip-browser-warning": "true" } })
             let employees = 0, leaves = 0
             if (statsRes.ok) {
                 const data = await statsRes.json()
@@ -65,7 +65,7 @@ export default function DashboardPage() {
             }
 
             let explanations = 0
-            const expRes = await fetch(`${API_BASE_URL}/api/explanations?status=1&limit=1`, { headers: { "Authorization": `Bearer ${token}` } })
+            const expRes = await fetch(`${API_BASE_URL}/api/explanations?status=1&limit=1`, { headers: { "Authorization": `Bearer ${token}`, "ngrok-skip-browser-warning": "true" } })
             if (expRes.ok) {
                 const expData = await expRes.json()
                 explanations = expData.total || 0
@@ -89,7 +89,7 @@ export default function DashboardPage() {
 
         try {
             const res = await fetch(`${API_BASE_URL}/api/monthly-records?startDate=${todayStr}&endDate=${todayStr}`, {
-                headers: { "Authorization": `Bearer ${token}` }
+                headers: { "Authorization": `Bearer ${token}`, "ngrok-skip-browser-warning": "true" }
             })
             if (!res.ok) {
                 if (res.status === 401) router.push("/login")

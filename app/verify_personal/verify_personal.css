@@ -1,0 +1,304 @@
+/* attendance.css */
+.attendance-wrapper {
+    /* Đổi tên biến (thêm tiền tố att-) để KHÔNG đè lên biến global của dự án */
+    --att-primary: #00f2ff;
+    --att-success: #00ff88;
+    --att-warning: #ffb800;
+    --att-error: #ff4444;
+    --att-bg: #0f172a;
+    --att-card: #1e293b;
+
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--att-bg);
+    color: #f8fafc;
+
+    /* Thay thế cho việc css trực tiếp vào body */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    box-sizing: border-box;
+    overflow: hidden;
+    z-index: 9999;
+    /* Đảm bảo che hết các layout cũ khi mở trang */
+}
+
+.attendance-wrapper * {
+    box-sizing: border-box;
+}
+
+.attendance-wrapper .btn-back {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    z-index: 50;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.attendance-wrapper .user-badge {
+    display: inline-flex;
+    background: rgba(0, 242, 255, 0.1);
+    border: 1px solid rgba(0, 242, 255, 0.3);
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.attendance-wrapper .user-badge strong {
+    color: var(--att-primary);
+    font-size: 1.05rem;
+    letter-spacing: 1px;
+}
+
+.attendance-wrapper header {
+    width: 100%;
+    max-width: 500px;
+    text-align: center;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+    margin-top: 35px;
+}
+
+.attendance-wrapper h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2rem;
+    color: var(--att-primary);
+    margin: 0 0 10px 0;
+    text-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+}
+
+.attendance-wrapper .live-clock {
+    font-family: 'Orbitron', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 5px 20px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    display: inline-block;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    letter-spacing: 2px;
+}
+
+.attendance-wrapper .net-banner {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.attendance-wrapper .net-checking {
+    background: #334155;
+    color: #cbd5e1;
+    border: 1px solid #475569;
+}
+
+.attendance-wrapper .net-valid {
+    background: rgba(0, 255, 136, 0.15);
+    color: var(--att-success);
+    border: 1px solid rgba(0, 255, 136, 0.4);
+}
+
+.attendance-wrapper .net-invalid {
+    background: rgba(255, 68, 68, 0.15);
+    color: var(--att-error);
+    border: 1px solid rgba(255, 68, 68, 0.4);
+    animation: pulseRed 2s infinite;
+}
+
+@keyframes pulseRed {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
+    }
+}
+
+.attendance-wrapper .info {
+    margin-top: 5px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem;
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--att-card);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-weight: bold;
+}
+
+.attendance-wrapper .status-scanning {
+    color: var(--att-primary);
+    border-color: var(--att-primary);
+}
+
+.attendance-wrapper .status-ok {
+    color: var(--att-success);
+    border-color: var(--att-success);
+    background: rgba(0, 255, 136, 0.1);
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+}
+
+.attendance-wrapper .status-warning {
+    color: var(--att-warning);
+    border-color: var(--att-warning);
+}
+
+.attendance-wrapper .status-err {
+    color: var(--att-warning);
+    border-color: var(--att-error);
+    background: rgba(255, 68, 68, 0.1);
+}
+
+.attendance-wrapper .loader {
+    width: 16px;
+    height: 16px;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top: 3px solid var(--att-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.attendance-wrapper .main-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    flex: 1;
+    background: #000;
+    border-radius: 15px;
+    overflow: hidden;
+    border: 2px solid #334155;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+    margin-top: 5px;
+}
+
+.attendance-wrapper .webcam {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+}
+
+.attendance-wrapper .guide-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 50% / 45%;
+    width: 220px;
+    height: 300px;
+    transition: all 0.3s;
+    z-index: 5;
+}
+
+.attendance-wrapper .guide-active {
+    border-color: var(--att-success);
+    box-shadow: 0 0 25px rgba(0, 255, 136, 0.4);
+    border-style: solid;
+    background: rgba(0, 255, 136, 0.05);
+}
+
+.attendance-wrapper .scan-bar {
+    position: absolute;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(to bottom, transparent, var(--att-primary));
+    box-shadow: 0 0 15px var(--att-primary);
+    top: 0;
+    z-index: 5;
+    animation: scan 2.5s ease-in-out infinite;
+    opacity: 0.6;
+}
+
+@keyframes scan {
+
+    0%,
+    100% {
+        top: 5%;
+    }
+
+    50% {
+        top: 95%;
+    }
+}
+
+.attendance-wrapper .force-btn {
+    margin-top: 10px;
+    width: 100%;
+    max-width: 500px;
+    padding: 14px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: not-allowed;
+    background: #334155;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    opacity: 0.6;
+    font-family: 'Roboto', sans-serif;
+    transition: all 0.3s;
+}
+
+.attendance-wrapper .force-btn.active {
+    background: #15803d;
+    animation: pulseAmber 2s infinite;
+    opacity: 1;
+    cursor: pointer;
+}
+
+@keyframes pulseAmber {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(180, 83, 9, 0.5)
+    }
+
+    50% {
+        box-shadow: 0 0 0 10px rgba(180, 83, 9, 0)
+    }
+}

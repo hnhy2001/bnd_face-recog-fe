@@ -87,6 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       localStorage.removeItem("hrm_role");
       localStorage.removeItem("hrm_name");
       localStorage.removeItem("hrm_username");
+      localStorage.removeItem("hrm_user_id");
       router.push("/login");
     }
   };
@@ -105,8 +106,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { id: "nav-personal", label: "QUẢN LÝ LỊCH CÁ NHÂN", href: "/personal-schedule", icon: Contact, roles: ["admin", "manager", "user"] },
     { id: "nav-payroll", label: "BẢNG TÍNH LƯƠNG", href: "/payroll", icon: Banknote, roles: ["admin"] },
     { id: "nav-faces", label: "QUẢN LÝ AI CORE", href: "/faces", icon: BrainCircuit, roles: ["admin"] },
-    { id: "nav-tb-online", label: "MỞ TB CHẤM CÔNG", href: "/tb-cham-cong", icon: Camera, roles: ["admin", "manager"] },
-    { id: "nav-tb-local", label: "MỞ TB CHẤM CÔNG LOCAL", href: "/tb-cham-cong-local", icon: Camera, roles: ["admin", "manager"] },
+    { id: "nav-tb-online", label: "MỞ TB CHẤM CÔNG", href: "/verify_personal", icon: Camera, roles: ["admin", "manager"] },
+    { id: "nav-tb-local", label: "MỞ TB CHẤM CÔNG LOCAL", href: "/verify_personal-local", icon: Camera, roles: ["admin", "manager"] },
     { id: "nav-user_info", label: "THÔNG TIN NHÂN VIÊN", href: "/profile", icon: UserCircle, roles: ["admin", "manager", "user"] },
     { id: "nav-wifi", label: "CẤU HÌNH WIFI", href: "/wifi", icon: Wifi, roles: ["admin"] },
   ];
@@ -114,7 +115,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const bottomNavItems = [
     { id: "bottom-1", label: "TỔNG QUAN", href: "/dashboard", icon: LayoutDashboard },
     { id: "bottom-2", label: "NHẬT KÝ", href: "/attendance", icon: ClipboardList },
-    { id: "bottom-3", label: "QUÉT TB", href: "/tb-cham-cong", icon: Camera },
+    { id: "bottom-3", label: "QUÉT TB", href: "/verify_personal", icon: Camera },
     { id: "bottom-4", label: "PHÂN CÔNG", href: "/assignments", icon: Handshake },
   ];
 

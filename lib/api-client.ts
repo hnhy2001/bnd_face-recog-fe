@@ -3,7 +3,9 @@ import axios from 'axios';
 // Base URL cho API
 // export const API_BASE_URL = 'http://localhost:8000';
 // export const API_BASE_URL = 'https://hrm.benhnhietdoi.vn';
-export const API_BASE_URL = 'http://192.168.12.13:8084';
+// export const API_BASE_URL = 'http://192.168.12.13:8084';
+export const API_BASE_URL = 'https://d1d5-103-190-200-2.ngrok-free.app';
+
 
 // Helper function để tạo full API URL
 export const getApiUrl = (path: string) => {
