@@ -13,6 +13,7 @@
     "@capacitor/camera": "^8.1.0",
     "@capacitor/cli": "^8.3.1",
     "@capacitor/core": "^8.3.1",
+    "@capacitor/ios": "^8.3.3",
     "@mediapipe/face_detection": "^0.4.1646425229",
     "axios": "^1.15.0",
     "class-variance-authority": "^0.7.1",

@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import Script from "next/script";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import "./verify_personal.css"; // Nhớ import file CSS em vừa tạo
+import "./verify_personal.css";
 import { API_BASE_URL } from "@/lib/api-client";
 
 // TỌA ĐỘ BỆNH VIỆN
@@ -62,18 +62,13 @@ export default function VerifyPersonalPage() {
         animationId: 0,
     });
 
-    // 1. Đồng hồ & Khởi tạo (ĐÃ SỬA ĐỂ TEST LỖI VĂNG LOGIN)
+    // 1. Đồng hồ & Khởi tạo
     useEffect(() => {
-        // Load User ID và in ra log để debug
+        // Cập nhật lấy hrm_username
         const storedUser = localStorage.getItem("hrm_username");
         console.log("=== DEBUG USER ===", storedUser);
 
         if (!storedUser) {
-            // Tạm thời vô hiệu hóa lệnh đá văng ra ngoài
-            // alert("Vui lòng đăng nhập!");
-            // router.push("/login");
-
-            // Hiện chữ này lên màn hình để biết là do lỗi localStorage
             setUserId("LỖI: KHÔNG ĐỌC ĐƯỢC LOCALSTORAGE");
         } else {
             setUserId(storedUser.toUpperCase());
@@ -89,11 +84,10 @@ export default function VerifyPersonalPage() {
 
         return () => {
             clearInterval(timer);
-            // Em thêm cái này để đảm bảo giải phóng camera khi unmount
             if (refs.current.animationId) {
-                cancelAnimationFrame(refs.current.animationId);
+                cancelAnimationFrame(refs.current.animationId); // Tắt loop AI để không bị kẹt khi out ra
             }
-            stopCamera();
+            stopCamera(); // Đảm bảo tắt đèn camera khi chuyển trang
         };
     }, [router]);
 
@@ -131,7 +125,6 @@ export default function VerifyPersonalPage() {
 
     const verifyNetworkAndLocation = useCallback(async () => {
         const r = refs.current;
-        // BƯỚC 1: MẠNG
         try {
             const ipRes = await fetch("https://api.ipify.org?format=json");
             const ipData = await ipRes.json();
@@ -168,7 +161,6 @@ export default function VerifyPersonalPage() {
             return;
         }
 
-        // BƯỚC 2: GPS
         if (!navigator.geolocation) {
             r.isLocationValid = false;
         } else {
@@ -304,7 +296,7 @@ export default function VerifyPersonalPage() {
                     method: "POST",
                     headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                     body: JSON.stringify({
-                        user_id: localStorage.getItem("hrm_username"),
+                        user_id: localStorage.getItem("hrm_username"), // Đã fix về hrm_username
                         ip_address: refs.current.currentPublicIp || "Unknown",
                         latitude: refs.current.currentPoint.lat || null,
                         longitude: refs.current.currentPoint.lng || null,
@@ -345,7 +337,6 @@ export default function VerifyPersonalPage() {
         return () => clearInterval(interval);
     }, [forceBtn.show, forceBtn.loading]);
 
-
     const handleForceCheckin = async () => {
         if (!refs.current.lastDetection) {
             setResultBox({ class: "status-warning", html: "⚠️ VUI LÒNG ĐƯA MẶT VÀO KHUNG TRƯỚC KHI GỬI" });
@@ -364,7 +355,7 @@ export default function VerifyPersonalPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                 body: JSON.stringify({
-                    user_id: localStorage.getItem("hrm_username"),
+                    user_id: localStorage.getItem("hrm_username"), // Đã fix về hrm_username
                     image_base64: croppedImage,
                     client_public_ip: refs.current.currentPublicIp,
                     full_image_base64: evidenceImage,
@@ -404,7 +395,7 @@ export default function VerifyPersonalPage() {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
                 body: JSON.stringify({
-                    user_id: localStorage.getItem("hrm_username"),
+                    user_id: localStorage.getItem("hrm_username"), // Đã fix về hrm_username
                     image_base64: croppedImage,
                     client_public_ip: r.currentPublicIp,
                     full_image_base64: fullImage,
@@ -436,10 +427,13 @@ export default function VerifyPersonalPage() {
 
     // Khởi chạy sau khi load xong script AI
     const initFaceDetectionAndCamera = useCallback(async () => {
+        // Đặt lại cờ để chắc chắn nó luôn chạy lại từ đầu mỗi lần gọi hàm này
+        refs.current.networkCheckDone = false;
+        refs.current.locationCheckDone = false;
+
         verifyNetworkAndLocation();
 
         try {
-            // Request camera permission explicitly for Android/iOS via Capacitor
             try {
                 const { Camera } = await import('@capacitor/camera');
                 await Camera.requestPermissions();
@@ -455,8 +449,7 @@ export default function VerifyPersonalPage() {
                 videoRef.current.onloadedmetadata = () => {
                     videoRef.current?.play().catch((e) => console.warn(e));
 
-                    // Setup Mediapipe
-                    // @ts-ignore - Vì FaceDetection đến từ script CDN
+                    // @ts-ignore
                     faceDetectionRef.current = new window.FaceDetection({
                         locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`,
                     });
@@ -511,7 +504,6 @@ export default function VerifyPersonalPage() {
                         }
                     });
 
-                    // Loop capture
                     const processVideoFrame = async () => {
                         const video = videoRef.current;
                         const r = refs.current;
@@ -519,7 +511,8 @@ export default function VerifyPersonalPage() {
                             r.isFaceDetectionRunning = true;
                             await faceDetectionRef.current.send({ image: video });
                         }
-                        requestAnimationFrame(processVideoFrame);
+                        // GÁN animationId ĐỂ HỦY KHI OUT RA (Cực kỳ quan trọng)
+                        r.animationId = requestAnimationFrame(processVideoFrame);
                     };
                     processVideoFrame();
                     sendAccessLog();
@@ -532,11 +525,12 @@ export default function VerifyPersonalPage() {
 
     return (
         <div className="attendance-wrapper">
-            {/* Script AI */}
             <Script
                 src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection"
                 strategy="afterInteractive"
-                onLoad={initFaceDetectionAndCamera}
+                onReady={() => {
+                    initFaceDetectionAndCamera();
+                }}
             />
 
             <Link href="/dashboard" className="btn-back">⬅ Đóng</Link>
@@ -552,7 +546,6 @@ export default function VerifyPersonalPage() {
 
                 <div className={`info ${resultBox.class}`} dangerouslySetInnerHTML={{ __html: resultBox.html }} />
 
-                {/* Nút Force checkin */}
                 {forceBtn.show && (
                     <button
                         className={`force-btn ${forceBtn.active ? 'active' : ''}`}

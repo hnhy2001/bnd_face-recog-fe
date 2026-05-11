@@ -1,0 +1,33 @@
+workflows:
+  ios-workflow:
+    name: iOS Build Unsigned (Next.js + Capacitor)
+    instance_type: mac_mini_m2
+    scripts:
+      - name: Cài đặt thư viện Node.js (bao gồm các plugin Capacitor)
+        script: |
+          npm install
+
+      - name: Build dự án Next.js ra file tĩnh
+        script: |
+          npm run build
+
+      - name: Đồng bộ code Web và Plugin sang nền tảng iOS
+        script: |
+          npx cap sync ios
+
+      - name: Biên dịch mã nguồn iOS (Xcode Build)
+        script: |
+          set -e # Bắt buộc dừng kịch bản ngay lập tức nếu có lỗi xảy ra
+          
+          # Biên dịch dự án thành file .app, lưu vào thư mục build_dir ở ngoài cùng
+          xcodebuild build -project ios/App/App.xcodeproj -scheme App -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CONFIGURATION_BUILD_DIR=$PWD/build_dir
+
+      - name: Đóng gói thành file .ipa
+        script: |
+          # Tạo thư mục Payload, copy file .app vào và nén lại thành App.ipa
+          mkdir -p Payload
+          cp -R build_dir/App.app Payload/
+          zip -r App.ipa Payload
+
+    artifacts:
+      - App.ipa
