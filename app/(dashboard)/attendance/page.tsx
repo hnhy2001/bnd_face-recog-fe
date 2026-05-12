@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import AttendanceDetailDrawer from "./../../../components/dashboard/attendance-detail-drawer";
 import { API_BASE_URL, getImageUrl } from "@/lib/api-client";
@@ -37,35 +38,22 @@ interface AttendanceRecord {
     department_name?: string;
 }
 
-// --- Hàm map trạng thái sang text ---
 const getStatusText = (status: number) => {
-    switch (status) {
-        case 1: return "Đúng giờ";
-        case 2: return "Đi muộn";
-        case 3: return "Về sớm";
-        case 6: return "Muộn&Sớm";
-        case 0: return "Vắng mặt";
-        case 4: return "Nghỉ phép";
-        case 5: return "Nghỉ KL";
-        case 7: return "Đang có mặt";
-        case 8: return "Chưa lịch";
-        case 9: return "CĐ 7h";
-        case 10: return "Quên vào";
-        case 11: return "Quên ra";
-        case 12: return "Nghỉ CĐ";
-        case 13: return "Đi học";
-        case 14: return "Công tác";
-        case 15: return "Nghỉ bù";
-        case 16: return "Thai sản";
-        case 17: return "Ma chay";
-        case 18: return "Con KH";
-        case 19: return "Kết hôn";
-        default: return "Không XĐ";
-    }
+    const map: Record<number, string> = {
+        0: "Vắng mặt", 1: "Đúng giờ", 2: "Đi muộn", 3: "Về sớm",
+        4: "Nghỉ phép", 5: "Nghỉ KL", 6: "Muộn&Sớm",
+        7: "Đang có mặt", 8: "Chưa lịch", 9: "CĐ 7h", 10: "Quên vào",
+        11: "Quên ra", 12: "Nghỉ CĐ", 13: "Đi học", 14: "Công tác",
+        15: "Nghỉ bù", 16: "Thai sản", 17: "Ma chay", 18: "Con KH",
+        19: "Kết hôn", 20: "Làm thêm (OT)", 21: "Nghỉ ốm", 22: "Nghỉ con ốm"
+    };
+    return map[status] || "Không XĐ";
 };
 
 export default function AttendanceLogPage() {
     const router = useRouter();
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => { setIsMounted(true); }, []);
 
     // --- States User/Auth ---
     const [currentUserRole, setCurrentUserRole] = useState("admin");
@@ -102,200 +90,603 @@ export default function AttendanceLogPage() {
     const [detailDrawer, setDetailDrawer] = useState({ isOpen: false, username: "", date: "", fullName: "" });
     const [isExporting, setIsExporting] = useState(false);
 
-    // --- Hàm xử lý xuất Excel ---
     const handleExportExcelAdvanced = async () => {
         if (!filteredData || filteredData.length === 0) {
-            alert("Không có dữ liệu để xuất!");
+            alert("Không có dữ liệu để xuất! Vui lòng chọn khoảng thời gian có dữ liệu.");
             return;
         }
 
         setIsExporting(true);
+
+        const startDt = new Date(startDate);
+        const targetYear = startDt.getFullYear();
+        const targetMonth = startDt.getMonth(); // 0-11
+        const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+
         try {
-            // Lấy danh sách toàn bộ nhân viên để map phòng ban
             const token = localStorage.getItem("hrm_token");
-            let userDeptMap: Record<string, string> = {};
+            let employeeDetails: Record<string, any> = {};
+            let holMap: Record<string, boolean> = {};
+            let leaveMap: Record<string, Record<string, any>> = {}; // Lưu trữ đơn nghỉ phép theo ngày & buổi
+            let shiftsList: any[] = [];
+
+            // 1. FETCH DỮ LIỆU BỔ TRỢ (Nhân viên, Lễ, Ca trực, Đơn nghỉ)
             try {
-                const res = await fetch(`${API_BASE_URL}/api/employees?page=1&size=10000`, {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
+                const [empRes, holRes, shiftRes, leaveRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/employees?page=1&size=10000`, { headers: { "Authorization": `Bearer ${token}` } }),
+                    fetch(`${API_BASE_URL}/holidays/api`, { headers: { "Authorization": `Bearer ${token}` } }),
+                    fetch(`${API_BASE_URL}/api/shifts`, { headers: { "Authorization": `Bearer ${token}` } }),
+                    fetch(`${API_BASE_URL}/leave-requests/api?status=APPROVED&size=10000`, { headers: { "Authorization": `Bearer ${token}` } })
+                ]);
+
+                if (empRes.ok) {
+                    const data = await empRes.json();
                     const items = data.items || data;
                     if (Array.isArray(items)) {
                         items.forEach((emp: any) => {
-                            userDeptMap[emp.username] = emp.department_name || "Chưa phân phòng";
+                            employeeDetails[emp.username.toUpperCase()] = {
+                                dept: emp.department_name || "Chưa phân phòng",
+                                position: emp.position || emp.job_title || emp.title || "",
+                                dob: emp.date_of_birth || emp.dob || emp.birthday || ""
+                            };
                         });
                     }
                 }
+
+                if (holRes.ok) {
+                    const holRaw = await holRes.json();
+                    const holidays = holRaw.items ? holRaw.items : (Array.isArray(holRaw) ? holRaw : []);
+                    holidays.forEach((h: any) => {
+                        const startDateStr = h.from_date || h.start_date || h.date;
+                        const endDateStr = h.to_date || h.end_date || startDateStr;
+                        if (!startDateStr) return;
+
+                        let curr = new Date(startDateStr.includes('-') ? startDateStr : startDateStr.split('/').reverse().join('-'));
+                        let endD = new Date(endDateStr.includes('-') ? endDateStr : endDateStr.split('/').reverse().join('-'));
+
+                        if (isNaN(curr.getTime())) return;
+                        curr.setHours(0, 0, 0, 0);
+                        endD.setHours(0, 0, 0, 0);
+
+                        while (curr <= endD) {
+                            const y = curr.getFullYear();
+                            const m = String(curr.getMonth() + 1).padStart(2, '0');
+                            const d = String(curr.getDate()).padStart(2, '0');
+                            holMap[`${y}-${m}-${d}`] = true;
+                            curr.setDate(curr.getDate() + 1);
+                        }
+                    });
+                }
+
+                if (shiftRes.ok) {
+                    shiftsList = await shiftRes.json();
+                }
+
+                if (leaveRes.ok) {
+                    const leaveRaw = await leaveRes.json();
+                    const leaves = leaveRaw.items ? leaveRaw.items : (Array.isArray(leaveRaw) ? leaveRaw : []);
+
+                    const getCodeFromLeaveName = (name: string) => {
+                        if (!name) return "P";
+                        const n = name.toLowerCase();
+                        if (n.includes("không lương")) return "KL";
+                        if (n.includes("học")) return "HT";
+                        if (n.includes("công tác")) return "CT";
+                        if (n.includes("thai sản")) return "Đ";
+                        if (n.includes("ma chay")) return "MC";
+                        if (n.includes("kết hôn")) return "KH";
+                        if (n.includes("con ốm")) return "CO";
+                        if (n.includes("ốm")) return "O";
+                        if (n.includes("chế độ")) return "CĐ";
+                        if (n.includes("bù")) return "B";
+                        return "P";
+                    };
+
+                    leaves.forEach((l: any) => {
+                        if (l.status !== 'APPROVED') return;
+                        let fromDateStr = l.from_date;
+                        let toDateStr = l.to_date || l.from_date;
+
+                        let curr = new Date(fromDateStr.includes('/') ? fromDateStr.split('/').reverse().join('-') : fromDateStr);
+                        let endD = new Date(toDateStr.includes('/') ? toDateStr.split('/').reverse().join('-') : toDateStr);
+                        if (isNaN(curr.getTime())) return;
+
+                        curr.setHours(0, 0, 0, 0);
+                        endD.setHours(0, 0, 0, 0);
+                        const fromTime = curr.getTime();
+                        const toTime = endD.getTime();
+
+                        const leaveCode = getCodeFromLeaveName(l.type_name);
+                        const empUsernameUpper = l.username.toUpperCase();
+
+                        while (curr <= endD) {
+                            const y = curr.getFullYear();
+                            const m = String(curr.getMonth() + 1).padStart(2, '0');
+                            const d = String(curr.getDate()).padStart(2, '0');
+                            const dStr = `${y}-${m}-${d}`;
+
+                            if (!leaveMap[empUsernameUpper]) leaveMap[empUsernameUpper] = {};
+
+                            let sessionText = "Cả ngày";
+                            if (fromTime === toTime) {
+                                if (l.from_session === "Sáng" && l.to_session === "Chiều") sessionText = "Cả ngày";
+                                else sessionText = l.from_session || "Cả ngày";
+                            } else {
+                                if (curr.getTime() === fromTime) sessionText = l.from_session || "Cả ngày";
+                                else if (curr.getTime() === toTime) sessionText = l.to_session || "Cả ngày";
+                                else sessionText = "Cả ngày";
+                            }
+
+                            leaveMap[empUsernameUpper][dStr] = { session: sessionText, code: leaveCode };
+                            curr.setDate(curr.getDate() + 1);
+                        }
+                    });
+                }
             } catch (err) {
-                console.error("No employee data fetched for export", err);
+                console.error("Lỗi tải dữ liệu bổ trợ (Lễ, Đơn nghỉ...)", err);
             }
 
-            const workbook = new ExcelJS.Workbook();
-            workbook.creator = 'HRM System';
-            workbook.created = new Date();
-
-            // 1. Tạo mảng Ngày
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            const dateList: string[] = [];
-            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                dateList.push(new Date(d).toISOString().split('T')[0]);
-            }
-
-            // 2. Định nghĩa các cột Tổng kết ở cuối bảng (Đã gom thành 3 nhóm chính)
-            const summaryHeaders = [
-                'Tổng số ca',
-                'Hợp lệ (ca)', 'Nghỉ (ca)', 'Vi phạm (ca)'
-            ];
-
-            // 3. Nhóm dữ liệu theo Phòng Ban
+            // 2. NHÓM DỮ LIỆU THEO KHOA/PHÒNG
             const groupedByDept = filteredData.reduce((acc: any, curr: any) => {
-                const dept = userDeptMap[curr.username] || "Chưa phân phòng";
+                const upperUsername = curr.username.toUpperCase();
+                const empInfo = employeeDetails[upperUsername] || { dept: "Chưa phân phòng", position: "", dob: "" };
+                const dept = empInfo.dept;
+
                 if (!acc[dept]) acc[dept] = {};
-                if (!acc[dept][curr.username]) {
-                    acc[dept][curr.username] = {
+                if (!acc[dept][upperUsername]) {
+                    acc[dept][upperUsername] = {
                         fullName: curr.full_name,
+                        username: curr.username,
+                        position: empInfo.position,
+                        dob: empInfo.dob,
                         records: []
                     };
                 }
-                acc[dept][curr.username].records.push(curr);
+                acc[dept][upperUsername].records.push(curr);
                 return acc;
             }, {});
 
+            const dateList: string[] = [];
+            for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                dateList.push(`${y}-${m}-${day}`);
+            }
+
+            /* =========================================================
+               FILE 1: BÁO CÁO THỐNG KÊ CHI TIẾT 4 NHÓM
+            ========================================================= */
+            const wb1 = new ExcelJS.Workbook();
+            wb1.creator = 'HRM System';
+            const summaryHeaders = ['Tổng số ca', 'Hợp lệ (ca)', 'Vi phạm (ca)', 'Nghỉ chế độ (ca)', 'Nghỉ KL (ca)'];
+
             Object.keys(groupedByDept).forEach(deptName => {
-                const sheet = workbook.addWorksheet(deptName);
+                const sheet = wb1.addWorksheet(deptName.substring(0, 31));
                 const users = groupedByDept[deptName];
 
-                // Tính tổng số cột để merge Title
-                const totalColumns = 3 + dateList.length + summaryHeaders.length;
-                sheet.mergeCells(1, 1, 1, totalColumns);
+                const totalCols = 3 + summaryHeaders.length + dateList.length;
+                sheet.mergeCells(1, 1, 1, totalCols);
                 const titleCell = sheet.getCell(1, 1);
-
-                const formatDt = (dtStr: string) => dtStr.split('-').reverse().join('/');
-                titleCell.value = `BÁO CÁO CHẤM CÔNG - TỪ ${formatDt(startDate)} ĐẾN ${formatDt(endDate)}`;
+                titleCell.value = `BÁO CÁO THỐNG KÊ CHẤM CÔNG - TỪ ${startDate.split('-').reverse().join('/')} ĐẾN ${endDate.split('-').reverse().join('/')}`;
                 titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF00524C' } };
                 titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
                 titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2EFDA' } };
                 sheet.getRow(1).height = 30;
 
-                sheet.addRow([]); // Dòng trống
+                sheet.addRow([]);
 
-                // --- Row Header ---
-                const headerRowData = [
-                    'STT', 'Mã NV', 'Họ Tên',
-                    ...dateList.map(d => d.split('-').reverse().slice(0, 2).join('/')),
-                    ...summaryHeaders
-                ];
+                const headerRowData = ['STT', 'Mã NV', 'Họ Tên', ...summaryHeaders, ...dateList.map(d => d.split('-').reverse().slice(0, 2).join('/'))];
                 const headerRow = sheet.addRow(headerRowData);
 
-                headerRow.eachCell((cell) => {
-                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+                headerRow.eachCell((cell, colNumber) => {
+                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
                     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
                     cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+                    if (colNumber > 3 + summaryHeaders.length) {
+                        const dateIndex = colNumber - 4 - summaryHeaders.length;
+                        const dateStr = dateList[dateIndex];
+                        const dObj = new Date(dateStr);
+                        const isWeekend = dObj.getDay() === 0 || dObj.getDay() === 6;
+                        if (isWeekend || holMap[dateStr]) {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF991B1B' } };
+                        }
+                    }
                 });
 
-                // Set độ rộng cột
                 sheet.getColumn(1).width = 5;
                 sheet.getColumn(2).width = 12;
                 sheet.getColumn(3).width = 25;
-                // Cột ngày
-                for (let i = 0; i < dateList.length; i++) {
-                    sheet.getColumn(4 + i).width = 22;
-                }
-                // Cột tổng kết
-                for (let i = 0; i < summaryHeaders.length; i++) {
-                    sheet.getColumn(4 + dateList.length + i).width = 16;
-                }
+                for (let i = 0; i < summaryHeaders.length; i++) sheet.getColumn(4 + i).width = 16;
+                for (let i = 0; i < dateList.length; i++) sheet.getColumn(4 + summaryHeaders.length + i).width = 28;
 
                 let stt = 1;
-                Object.keys(users).forEach(username => {
-                    const userData = users[username];
-
-                    // Khởi tạo bộ đếm đã được gom nhóm
-                    let uStats = {
-                        lateMin: 0,
-                        earlyMin: 0,
-                        totalShifts: 0,
-                        validCount: 0,       // Hợp lệ
-                        leaveCount: 0,       // Nghỉ
-                        violationCount: 0    // Vi phạm
-                    };
+                Object.keys(users).forEach(upperUsername => {
+                    const userData = users[upperUsername];
+                    let uStats = { totalShifts: 0, validCount: 0, violationCount: 0, leaveCheDoCount: 0, leaveKLCount: 0 };
 
                     const dateValues = dateList.map(date => {
-                        const dayRecords = userData.records.filter((r: any) => r.date === date);
-                        if (dayRecords.length > 0) {
-                            dayRecords.forEach((r: any) => {
-                                // Cộng phút & tổng ca
-                                uStats.lateMin += r.late_minutes || 0;
-                                uStats.earlyMin += r.early_minutes || 0;
-                                uStats.totalShifts += 1;
+                        const dayRecords = userData.records.filter((r: any) => (r.date || "").split('T')[0] === date);
 
-                                // Phân loại vào 3 nhóm chính
+                        if (dayRecords.length > 0) {
+                            let richTextArray: any[] = [];
+                            dayRecords.forEach((r: any, index: number) => {
+                                uStats.totalShifts += 1;
                                 const s = r.status;
-                                if ([1, 7, 9, 13, 14, 15].includes(s)) {
+                                const shift = r.shift_code || '---';
+
+                                let bigStatus = "❓ KHÁC";
+                                let fontColor = 'FF475569';
+
+                                if ([1, 7, 9, 13, 14, 20].includes(s)) {
                                     uStats.validCount += 1;
-                                } else if ([4, 5, 12, 16, 17, 18, 19].includes(s)) {
-                                    uStats.leaveCount += 1;
+                                    bigStatus = "✅ HỢP LỆ"; fontColor = 'FF059669';
                                 } else if ([0, 2, 3, 6, 8, 10, 11].includes(s)) {
                                     uStats.violationCount += 1;
+                                    bigStatus = "🚨 VI PHẠM"; fontColor = 'FFDC2626';
+                                } else if ([4, 12, 15, 16, 17, 18, 19, 21, 22].includes(s)) {
+                                    uStats.leaveCheDoCount += 1;
+                                    bigStatus = "🏖️ NGHỈ CHẾ ĐỘ"; fontColor = 'FF0284C7';
+                                } else if (s === 5) {
+                                    uStats.leaveKLCount += 1;
+                                    bigStatus = "⏸️ NGHỈ KL"; fontColor = 'FFEA580C';
                                 }
-                            });
 
-                            // Chuỗi hiển thị trong từng ô ngày
-                            return dayRecords.map((r: any) => {
-                                const shift = r.shift_display_name || r.shift_code || '---';
-                                const statusTxt = getStatusText(r.status);
-                                return `[${shift}: ${statusTxt}]`;
-                            }).join(' | ');
+                                let textLine = `[${shift}]: ${bigStatus} - ${getStatusText(s)}`;
+                                if (index < dayRecords.length - 1) textLine += '\n';
+
+                                richTextArray.push({
+                                    font: { name: 'Arial', size: 11, color: { argb: fontColor } },
+                                    text: textLine
+                                });
+                            });
+                            return { richText: richTextArray };
                         }
                         return '-';
                     });
 
-                    // Hàm bọc dấu gạch ngang nếu giá trị là 0 cho đẹp mắt
                     const fmtVal = (val: number) => val > 0 ? val : '-';
 
                     const rowData = [
-                        stt++,
-                        username,
-                        userData.fullName,
-                        ...dateValues,
-                        fmtVal(uStats.totalShifts),
-                        fmtVal(uStats.validCount),
-                        fmtVal(uStats.leaveCount),
-                        fmtVal(uStats.violationCount)
+                        stt++, userData.username, userData.fullName,
+                        fmtVal(uStats.totalShifts), fmtVal(uStats.validCount), fmtVal(uStats.violationCount), fmtVal(uStats.leaveCheDoCount), fmtVal(uStats.leaveKLCount),
+                        ...dateValues
                     ];
 
                     const dataRow = sheet.addRow(rowData);
 
-                    dataRow.eachCell((cell, colNumber) => {
+                    dataRow.eachCell((cell, colNum) => {
                         cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                        cell.alignment = {
-                            vertical: 'middle',
-                            horizontal: colNumber > 3 ? 'center' : 'left', // Căn giữa cho ngày & số liệu
-                            wrapText: true
-                        };
+                        cell.alignment = { vertical: 'middle', horizontal: colNum > 3 ? 'center' : 'left', wrapText: true };
 
-                        // (Tùy chọn) Tô màu nhẹ cho 3 cột tổng kết để dễ nhìn
-                        if (colNumber === 4 + dateList.length + 1) { // Cột Hợp lệ (Màu xanh)
-                            cell.font = { color: { argb: 'FF059669' }, bold: true };
-                        } else if (colNumber === 4 + dateList.length + 2) { // Cột Nghỉ (Màu xanh dương)
-                            cell.font = { color: { argb: 'FF0284C7' }, bold: true };
-                        } else if (colNumber === 4 + dateList.length + 3) { // Cột Vi phạm (Màu đỏ)
-                            cell.font = { color: { argb: 'FFDC2626' }, bold: true };
+                        if (colNum === 5) cell.font = { color: { argb: 'FF059669' }, bold: true };
+                        else if (colNum === 6) cell.font = { color: { argb: 'FFDC2626' }, bold: true };
+                        else if (colNum === 7) cell.font = { color: { argb: 'FF0284C7' }, bold: true };
+                        else if (colNum === 8) cell.font = { color: { argb: 'FFEA580C' }, bold: true };
+
+                        if (colNum > 3 + summaryHeaders.length) {
+                            const dateIndex = colNum - 4 - summaryHeaders.length;
+                            const dateStr = dateList[dateIndex];
+                            const dObj = new Date(dateStr);
+                            if (dObj.getDay() === 0 || dObj.getDay() === 6 || holMap[dateStr]) {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+                            }
                         }
                     });
                 });
             });
 
-            const buffer = await workbook.xlsx.writeBuffer();
-            saveAs(new Blob([buffer]), `Bao_Cao_Cham_Cong_${startDate}_den_${endDate}.xlsx`);
+            /* =========================================================
+               FILE 2: BẢNG CHẤM CÔNG TRUYỀN THỐNG (FORM GIẤY)
+            ========================================================= */
+            const wb2 = new ExcelJS.Workbook();
+            wb2.creator = 'HRM System';
+
+            const getLeaveCode = (status: number, shiftCode: string) => {
+                const map: Record<number, string> = {
+                    4: "P", 5: "KL", 12: "CĐ", 13: "HT", 14: "CT", 15: "B", 16: "Đ", 17: "MC", 18: "KH", 19: "KH", 21: "O", 22: "CO", 0: "N"
+                };
+                return map[status] || shiftCode || 'X';
+            };
+
+            Object.keys(groupedByDept).forEach(deptName => {
+                const sheet2 = wb2.addWorksheet(deptName.substring(0, 31));
+                const users = groupedByDept[deptName];
+
+                sheet2.mergeCells('A1:D1');
+                const h1 = sheet2.getCell('A1');
+                h1.value = 'BỆNH VIỆN BỆNH NHIỆT ĐỚI TW';
+                h1.font = { name: 'Times New Roman', size: 11, bold: true };
+                h1.alignment = { horizontal: 'center', vertical: 'middle' };
+
+                sheet2.mergeCells('A2:D2');
+                const h2 = sheet2.getCell('A2');
+                h2.value = `Khoa/phòng: ${deptName}`;
+                h2.font = { name: 'Times New Roman', size: 11, bold: true };
+                h2.alignment = { horizontal: 'center', vertical: 'middle' };
+
+                const titleColStart = 5;
+                const titleColEnd = 4 + daysInMonth + 5;
+                sheet2.mergeCells(1, titleColStart, 2, titleColEnd);
+                const titleCell2 = sheet2.getCell(1, titleColStart);
+                titleCell2.value = `BẢNG CHẤM CÔNG\nTháng ${targetMonth + 1} năm ${targetYear}`;
+                titleCell2.font = { name: 'Times New Roman', size: 14, bold: true };
+                titleCell2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+
+                sheet2.getRow(1).height = 20;
+                sheet2.getRow(2).height = 20;
+
+                const headers = [
+                    { col: 1, text: 'TT' }, { col: 2, text: 'Họ và tên' }, { col: 3, text: 'Nghề nghiệp\nchức vụ' }, { col: 4, text: 'Ngày, tháng\nnăm sinh' }
+                ];
+
+                headers.forEach(h => {
+                    sheet2.mergeCells(4, h.col, 5, h.col);
+                    const cell = sheet2.getCell(4, h.col);
+                    cell.value = h.text;
+                    cell.font = { name: 'Times New Roman', size: 10, bold: true };
+                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                });
+
+                sheet2.mergeCells(4, 5, 4, 4 + daysInMonth);
+                const ncCell = sheet2.getCell(4, 5);
+                ncCell.value = 'Ngày công';
+                ncCell.font = { name: 'Times New Roman', size: 10, bold: true };
+                ncCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const cell = sheet2.getCell(5, 4 + d);
+                    cell.value = d;
+
+                    const currentDt = new Date(targetYear, targetMonth, d);
+                    const isWeekend = currentDt.getDay() === 0 || currentDt.getDay() === 6;
+                    const dateStr = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const isHoliday = holMap[dateStr];
+
+                    if (isWeekend || isHoliday) {
+                        cell.font = { name: 'Times New Roman', size: 10, bold: true, color: { argb: 'FFFF0000' } };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+                    } else {
+                        cell.font = { name: 'Times New Roman', size: 10, bold: true };
+                    }
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    sheet2.getColumn(4 + d).width = 4;
+                }
+
+                const extraStart = 4 + daysInMonth + 1;
+                sheet2.mergeCells(4, extraStart, 4, extraStart + 4);
+                const qrCell = sheet2.getCell(4, extraStart);
+                qrCell.value = 'Quy ra công để trả lương';
+                qrCell.font = { name: 'Times New Roman', size: 10, bold: true };
+                qrCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+                const extraHeaders = ['Nghỉ\nhưởng\n100% L', 'Nghỉ\nhưởng\nBHXH', 'Học\ntập', 'Ngừng\nviệc\nhưởng L', 'Nghỉ\nkhông\nhưởng\nlương'];
+                extraHeaders.forEach((text, i) => {
+                    const cell = sheet2.getCell(5, extraStart + i);
+                    cell.value = text;
+                    cell.font = { name: 'Times New Roman', size: 9 };
+                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                    sheet2.getColumn(extraStart + i).width = 8;
+                });
+
+                sheet2.getRow(4).height = 20;
+                sheet2.getRow(5).height = 60;
+                sheet2.getColumn(1).width = 4;
+                sheet2.getColumn(2).width = 24;
+                sheet2.getColumn(3).width = 12;
+                sheet2.getColumn(4).width = 12;
+
+                sheet2.getRow(4).eachCell({ includeEmpty: true }, cell => { cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; });
+                sheet2.getRow(5).eachCell({ includeEmpty: true }, cell => { cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; });
+
+                let stt2 = 1;
+                let currentRow = 6;
+                Object.keys(users).forEach(upperUsername => {
+                    const userData = users[upperUsername];
+
+                    let dobStr = userData.dob || '';
+                    if (dobStr && dobStr.includes('-')) {
+                        const parts = dobStr.split('-');
+                        if (parts.length === 3) dobStr = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    }
+
+                    const rowData2: any[] = [stt2++, userData.fullName, userData.position, dobStr];
+
+                    let count100L = 0, countBHXH = 0, countHocTap = 0, countKL = 0;
+
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const dateStr = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                        const recordsForDay = userData.records.filter((r: any) => (r.date || "").split('T')[0] === dateStr);
+
+                        let leaveData = null;
+                        if (leaveMap[upperUsername] && leaveMap[upperUsername][dateStr]) {
+                            leaveData = leaveMap[upperUsername][dateStr];
+                        }
+
+                        let finalCellCodes: string[] = [];
+
+                        if (leaveData) {
+                            const isHalfDay = (leaveData.session === "Sáng" || leaveData.session === "Chiều");
+                            const leaveCodeStr = isHalfDay ? `${leaveData.code}/2` : leaveData.code;
+
+                            finalCellCodes.push(leaveCodeStr);
+
+                            const countVal = isHalfDay ? 0.5 : 1;
+                            const c = leaveData.code;
+                            if (c === "Đ" || c === "O") countBHXH += countVal;
+                            else if (c === "HT") countHocTap += countVal;
+                            else if (["P", "CĐ", "B", "MC", "KH", "CT"].includes(c)) count100L += countVal;
+                            else if (c === "KL" || c === "N") countKL += countVal;
+
+                            if (isHalfDay && recordsForDay.length > 0) {
+                                recordsForDay.forEach((r: any) => {
+                                    const st = r.status;
+                                    if ([1, 2, 3, 6, 7, 9, 20].includes(st)) {
+                                        let workCode = (r.shift_code || "X") + "/2";
+                                        if (!finalCellCodes.includes(workCode)) finalCellCodes.push(workCode);
+                                    }
+                                });
+                            }
+                        } else {
+                            if (recordsForDay.length > 0) {
+                                recordsForDay.forEach((r: any) => {
+                                    const st = r.status;
+                                    let codeStr = getLeaveCode(st, r.shift_code);
+
+                                    if (st === 16 || st === 21) countBHXH += 1;
+                                    else if (st === 13) countHocTap += 1;
+                                    else if ([4, 12, 15, 17, 18, 19].includes(st)) count100L += 1;
+                                    else if (st === 5 || st === 0) countKL += 1;
+
+                                    if (!finalCellCodes.includes(codeStr)) finalCellCodes.push(codeStr);
+                                });
+                            }
+                        }
+
+                        rowData2.push(finalCellCodes.join(', '));
+                    }
+
+                    rowData2.push(count100L || '', countBHXH || '', countHocTap || '', '', countKL || '');
+
+                    const dataRow2 = sheet2.addRow(rowData2);
+                    dataRow2.eachCell((cell, colNum) => {
+                        cell.font = { name: 'Times New Roman', size: 11 };
+                        cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+                        if (colNum > 4 && colNum <= 4 + daysInMonth) {
+                            const dayIndex = colNum - 4;
+                            const currentDt = new Date(targetYear, targetMonth, dayIndex);
+                            const isWeekend = currentDt.getDay() === 0 || currentDt.getDay() === 6;
+
+                            const dateStr = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(dayIndex).padStart(2, '0')}`;
+                            const isHoliday = holMap[dateStr];
+
+                            const cellValue = String(cell.value || '').trim();
+                            const codesInCell = cellValue.split(',').map(c => c.trim());
+
+                            const leaveCodes = ["P"];
+                            const isLeaveDay = codesInCell.some(code => leaveCodes.some(lc => code === lc || code === lc + "/2"));
+
+                            if (isWeekend || isHoliday || isLeaveDay) {
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBFBFBF' } };
+
+                                if ((isWeekend || isHoliday) && !isLeaveDay && cellValue === "") {
+                                    cell.font = { name: 'Times New Roman', size: 11, bold: true, color: { argb: 'FFFF0000' } };
+                                } else {
+                                    cell.font = { name: 'Times New Roman', size: 11, bold: true, color: { argb: 'FF000000' } };
+                                }
+                            }
+                        }
+
+                        cell.alignment = { vertical: 'middle', horizontal: colNum > 4 ? 'center' : (colNum === 2 ? 'left' : 'center'), wrapText: true };
+                    });
+                    currentRow++;
+                });
+
+                const footerStartRow = currentRow + 2;
+                sheet2.mergeCells(footerStartRow, extraStart - 5, footerStartRow, extraStart + 4);
+                const dateCell = sheet2.getCell(footerStartRow, extraStart - 5);
+                dateCell.value = `Hà Nội, ngày ... tháng ${targetMonth + 1} năm ${targetYear}`;
+                dateCell.font = { name: 'Times New Roman', size: 11, italic: true };
+                dateCell.alignment = { horizontal: 'center' };
+
+                const sigRow = footerStartRow + 1;
+                sheet2.mergeCells(sigRow, 2, sigRow, 4);
+                const sig1 = sheet2.getCell(sigRow, 2);
+                sig1.value = 'Người chấm công';
+                sig1.font = { name: 'Times New Roman', size: 11, bold: true };
+                sig1.alignment = { horizontal: 'center' };
+
+                const midCol = Math.floor(daysInMonth / 2) + 2;
+                sheet2.mergeCells(sigRow, midCol, sigRow, midCol + 4);
+                const sig2 = sheet2.getCell(sigRow, midCol);
+                sig2.value = 'Phụ trách đơn vị';
+                sig2.font = { name: 'Times New Roman', size: 11, bold: true };
+                sig2.alignment = { horizontal: 'center' };
+
+                sheet2.mergeCells(sigRow, extraStart - 4, sigRow, extraStart + 4);
+                const sig3 = sheet2.getCell(sigRow, extraStart - 4);
+                sig3.value = 'Lãnh đạo phòng TCCB';
+                sig3.font = { name: 'Times New Roman', size: 11, bold: true };
+                sig3.alignment = { horizontal: 'center' };
+            });
+
+            // SHEET CHÚ THÍCH (LEGEND) CHO WB2
+            const legendSheet = wb2.addWorksheet('Chú thích');
+            legendSheet.getColumn(1).width = 25;
+            legendSheet.getColumn(2).width = 60;
+
+            legendSheet.mergeCells('A1:B1');
+            const titleLegend = legendSheet.getCell('A1');
+            titleLegend.value = 'BẢNG CHÚ THÍCH KÝ HIỆU CHẤM CÔNG';
+            titleLegend.font = { name: 'Times New Roman', size: 14, bold: true };
+            titleLegend.alignment = { horizontal: 'center', vertical: 'middle' };
+            legendSheet.getRow(1).height = 30;
+
+            const headerRowLegend = legendSheet.addRow(['Ký hiệu', 'Ý nghĩa (Ghi chú)']);
+            headerRowLegend.eachCell(c => {
+                c.font = { name: 'Times New Roman', size: 12, bold: true };
+                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2EFDA' } };
+                c.alignment = { horizontal: 'center', vertical: 'middle' };
+                c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            });
+
+            const legends = [
+                { k: "P", v: "Nghỉ phép" }, { k: "KL", v: "Nghỉ không lương" }, { k: "CĐ", v: "Nghỉ chế độ chung" },
+                { k: "HT", v: "Đi học" }, { k: "CT", v: "Công tác" }, { k: "B", v: "Nghỉ bù" }, { k: "Đ", v: "Thai sản" },
+                { k: "MC", v: "Ma chay" }, { k: "KH", v: "Kết hôn / Con kết hôn" }, { k: "O", v: "Ốm" },
+                { k: "CO", v: "Con ốm" }, { k: "N", v: "Vắng mặt" }
+            ];
+
+            legends.forEach(item => {
+                const row = legendSheet.addRow([item.k, item.v]);
+                row.eachCell((c, colNumber) => {
+                    c.font = { name: 'Times New Roman', size: 12 };
+                    c.alignment = { vertical: 'middle', horizontal: colNumber === 1 ? 'center' : 'left' };
+                    c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                });
+            });
+
+            if (shiftsList && shiftsList.length > 0) {
+                shiftsList.forEach(shift => {
+                    if (shift.shift_code && shift.start_time && shift.end_time) {
+                        const row = legendSheet.addRow([shift.shift_code, `${shift.shift_name || 'Ca làm việc'} (Từ ${shift.start_time.substring(0, 5)} đến ${shift.end_time.substring(0, 5)})`]);
+                        row.eachCell((c, colNumber) => {
+                            c.font = { name: 'Times New Roman', size: 12 };
+                            c.alignment = { vertical: 'middle', horizontal: colNumber === 1 ? 'center' : 'left' };
+                            c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                        });
+                    }
+                });
+            }
+
+            const colorRow = legendSheet.addRow(['(Ô được tô màu xám / đen)', 'Ngày nghỉ (Thứ 7, Chủ Nhật, Nghỉ lễ, Nghỉ phép)']);
+            const colorCell1 = colorRow.getCell(1);
+            colorCell1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBFBFBF' } };
+            colorCell1.font = { name: 'Times New Roman', size: 12, bold: true };
+            colorCell1.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            colorCell1.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+            const colorCell2 = colorRow.getCell(2);
+            colorCell2.font = { name: 'Times New Roman', size: 12, italic: true };
+            colorCell2.alignment = { vertical: 'middle', horizontal: 'left' };
+            colorCell2.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+            // 3. XUẤT 2 FILE EXCEL LIÊN TIẾP
+            const buffer1 = await wb1.xlsx.writeBuffer();
+            saveAs(new Blob([buffer1]), `Bao_Cao_Thong_Ke_Thang_${targetMonth + 1}_${targetYear}.xlsx`);
+
+            setTimeout(async () => {
+                const buffer2 = await wb2.xlsx.writeBuffer();
+                saveAs(new Blob([buffer2]), `Bang_Cham_Cong_Truyen_Thong_${targetMonth + 1}_${targetYear}.xlsx`);
+                setIsExporting(false);
+            }, 800);
 
         } catch (error) {
             console.error("Lỗi xuất Excel:", error);
-            alert("Có lỗi xảy ra khi tạo báo cáo.");
-        } finally {
+            alert("Có lỗi xảy ra khi tạo báo cáo Excel. Vui lòng thử lại!");
             setIsExporting(false);
         }
     };
@@ -409,37 +800,15 @@ export default function AttendanceLogPage() {
         return filteredData.slice(start, start + limit);
     }, [filteredData, page, limit]);
 
-    // ==========================================
-    // TÍNH THỐNG KÊ
-    // ==========================================
     const stats = useMemo(() => {
-        let s = {
-            total: filteredData.length, present: 0, late: 0, early: 0, lateEarly: 0,
-            absent: 0, leave: 0, unpaid: 0, inProgress: 0, noSchedule: 0, sevenHours: 0,
-            forgotIn: 0, forgotOut: 0, lCheDo: 0, lDiHoc: 0, lCongTac: 0, lNghiBu: 0,
-            lThaiSan: 0, lMaChay: 0, lConKH: 0, lKetHon: 0
-        };
-        filteredData.forEach(i => {
-            if (i.status === 1) s.present++;
-            else if (i.status === 2) s.late++;
-            else if (i.status === 3) s.early++;
-            else if (i.status === 6) s.lateEarly++;
-            else if (i.status === 0) s.absent++;
-            else if (i.status === 4) s.leave++;
-            else if (i.status === 5) s.unpaid++;
-            else if (i.status === 7) s.inProgress++;
-            else if (i.status === 8) s.noSchedule++;
-            else if (i.status === 9) s.sevenHours++;
-            else if (i.status === 10) s.forgotIn++;
-            else if (i.status === 11) s.forgotOut++;
-            else if (i.status === 12) s.lCheDo++;
-            else if (i.status === 13) s.lDiHoc++;
-            else if (i.status === 14) s.lCongTac++;
-            else if (i.status === 15) s.lNghiBu++;
-            else if (i.status === 16) s.lThaiSan++;
-            else if (i.status === 17) s.lMaChay++;
-            else if (i.status === 18) s.lConKH++;
-            else if (i.status === 19) s.lKetHon++;
+        let s = { total: 0, hopLe: 0, viPham: 0, nghiCheDo: 0, nghiKL: 0 };
+        filteredData.forEach(item => {
+            const st = item.status;
+            s.total++;
+            if ([1, 7, 9, 13, 14, 20].includes(st)) s.hopLe++;
+            else if ([0, 2, 3, 6, 8, 10, 11].includes(st)) s.viPham++;
+            else if ([4, 12, 15, 16, 17, 18, 19, 21, 22].includes(st)) s.nghiCheDo++;
+            else if (st === 5) s.nghiKL++;
         });
         return s;
     }, [filteredData]);
@@ -485,13 +854,16 @@ export default function AttendanceLogPage() {
         today.setHours(0, 0, 0, 0);
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
-        const firstOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        firstOfLastMonth.setHours(0, 0, 0, 0);
 
-        if (item.username !== currentUsername) return true; // Nhìn lịch người khác
+        // Giới hạn giải trình từ đầu tháng trước
+        const firstOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+
+        if (item.username !== currentUsername) return true;
         if (item.is_explained) return true;
-        const nonExplainableStatuses = [1, 4, 5, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19];
-        if (nonExplainableStatuses.includes(item.status)) return true;
+
+        // Chỉ cho phép giải trình nếu thuộc nhóm VI PHẠM (không tính 8 - Chưa có lịch)
+        const isViolation = [0, 2, 3, 6, 10, 11].includes(item.status);
+        if (!isViolation) return true;
 
         if (item.date) {
             const recordDate = new Date(item.date + 'T00:00:00');
@@ -536,6 +908,14 @@ export default function AttendanceLogPage() {
 
     const handleExplainSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // --- BỔ SUNG LOGIC BẮT BUỘC CÓ ẢNH ---
+        if (!explainModal.file) {
+            alert("⚠️ Vui lòng đính kèm ảnh minh chứng trước khi gửi giải trình!");
+            return;
+        }
+        // --------------------------------------
+
         setIsSubmittingExplain(true);
         const formData = new FormData();
         formData.append("username", explainModal.username);
@@ -543,7 +923,9 @@ export default function AttendanceLogPage() {
         formData.append("shift_code", explainModal.shiftCode);
         formData.append("reason", explainModal.reason);
         formData.append("status", "1");
-        if (explainModal.file) formData.append("attached_file", explainModal.file);
+
+        // Đã qua được check ở trên thì chắc chắn có file
+        formData.append("attached_file", explainModal.file);
 
         try {
             const res = await fetch(`${API_BASE_URL}/api/explanations`, {
@@ -592,86 +974,81 @@ export default function AttendanceLogPage() {
                             <option value={100}>100 dòng / trang</option>
                         </select>
                     </div>
+
                     <div className="flex flex-col flex-1 min-w-[150px]">
                         <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Trạng thái</label>
                         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="hrm-input h-10 px-3 bg-background text-foreground rounded-lg border border-border text-[13px] font-bold outline-none cursor-pointer">
                             <option value="all">Tất cả trạng thái</option>
-                            <option value="1">Đúng giờ</option>
-                            <option value="2">Đi muộn</option>
-                            <option value="3">Về sớm</option>
-                            <option value="6">Muộn & Sớm</option>
-                            <option value="0">Vắng mặt</option>
-                            <option value="4">Nghỉ phép</option>
-                            <option value="5">Nghỉ KL</option>
-                            <option value="7">Đang có mặt</option>
-                            <option value="8">Chưa có lịch</option>
-                            <option value="9">Chế độ 7h</option>
-                            <option value="10">❓ Quên vào</option>
-                            <option value="11">❓ Quên ra</option>
-                            <option value="12">🏖️ Nghỉ chế độ</option>
-                            <option value="13">📚 Đi học</option>
-                            <option value="14">💼 Công tác</option>
-                            <option value="15">🔄 Nghỉ bù</option>
-                            <option value="16">👶 Thai sản</option>
-                            <option value="17">⚫ Ma chay</option>
-                            <option value="18">💍 Con kết hôn</option>
-                            <option value="19">💒 Kết hôn</option>
+                            <optgroup label="✅ HỢP LỆ">
+                                <option value="1">✔️ Đi làm đúng giờ</option>
+                                <option value="7">⚡ Đang có mặt</option>
+                                <option value="9">⏱️ Chế độ 7h</option>
+                                <option value="13">📚 Đi học</option>
+                                <option value="14">💼 Công tác</option>
+                                <option value="20">⏰ Làm thêm giờ (OT)</option>
+                            </optgroup>
+                            <optgroup label="🚨 VI PHẠM">
+                                <option value="0">🚫 Vắng mặt</option>
+                                <option value="2">⚠️ Đi muộn</option>
+                                <option value="3">⏳ Về sớm</option>
+                                <option value="6">❌ Đi muộn & Về sớm</option>
+                                <option value="8">➖ Chưa có lịch</option>
+                                <option value="10">❓ Không chấm vào</option>
+                                <option value="11">❓ Không chấm ra</option>
+                            </optgroup>
+                            <optgroup label="🏖️ NGHỈ CHẾ ĐỘ">
+                                <option value="4">📅 Nghỉ phép có lương</option>
+                                <option value="12">🏖️ Nghỉ chế độ</option>
+                                <option value="15">🔄 Nghỉ bù</option>
+                                <option value="16">👶 Thai sản</option>
+                                <option value="17">⚫ Nghỉ ma chay</option>
+                                <option value="18">💍 Nghỉ con kết hôn</option>
+                                <option value="19">💒 Nghỉ kết hôn</option>
+                                <option value="21">🤒 Nghỉ ốm</option>
+                                <option value="22">👨‍👩‍👧 Nghỉ con ốm</option>
+                            </optgroup>
+                            <optgroup label="⏸️ NGHỈ KHÔNG LƯƠNG">
+                                <option value="5">📅 Nghỉ không lương</option>
+                            </optgroup>
                         </select>
                     </div>
+
                     {currentUserRole !== "user" && (
                         <div className="flex flex-col flex-[2] min-w-[200px]">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 flex items-center gap-1"><Search size={12} /> Tìm nhân viên</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 flex items-center gap-1">
+                                <Search size={12} /> Tìm nhân viên
+                            </label>
                             <input type="text" value={searchKeyword} onChange={e => setSearchKeyword(e.target.value)} placeholder="Nhập tên hoặc mã NV..." className="hrm-input h-10 px-3 bg-background text-foreground rounded-lg border border-border text-[13px] outline-none" />
                         </div>
                     )}
+
                     <div className="flex flex-col flex-1 min-w-[130px]">
                         <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Từ ngày</label>
                         <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="hrm-input h-10 px-3 bg-background text-foreground rounded-lg border border-border text-[13px] outline-none font-mono" />
                     </div>
+
                     <div className="flex flex-col flex-1 min-w-[130px]">
                         <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Đến ngày</label>
                         <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="hrm-input h-10 px-3 bg-background text-foreground rounded-lg border border-border text-[13px] outline-none font-mono" />
                     </div>
+
                     <button onClick={handleExportExcelAdvanced} disabled={isExporting} className={`h-10 px-4 rounded-lg font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 transition-all shrink-0 ${isExporting ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-80' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
                         {isExporting ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div> : <Printer size={16} />}
                         {isExporting ? "Đang xử lý..." : "Xuất B/C"}
                     </button>
                 </div>
 
-                {/* STATS GRID */}
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] gap-2 shrink-0">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 shrink-0">
                     {[
-                        { label: "Tổng số ca", value: stats.total, colorClass: "text-blue-500" },
-                        { label: "Đúng giờ", value: stats.present, colorClass: "text-green-500" },
-                        { label: "Đi muộn", value: stats.late, colorClass: "text-amber-500" },
-                        { label: "Về sớm", value: stats.early, colorClass: "text-pink-500" },
-                        { label: "Muộn & Sớm", value: stats.lateEarly, colorClass: "text-red-500" },
-                        { label: "Vắng mặt", value: stats.absent, colorClass: "text-slate-500" },
-                        { label: "Nghỉ phép", value: stats.leave, colorClass: "text-sky-500" },
-                        { label: "Nghỉ KL", value: stats.unpaid, colorClass: "text-slate-700 dark:text-slate-400" },
-                        { label: "Đang có mặt", value: stats.inProgress, colorClass: "text-blue-600" },
-                        { label: "Chưa có lịch", value: stats.noSchedule, colorClass: "text-slate-400" },
-                        { label: "Chế độ 7h", value: stats.sevenHours, colorClass: "text-indigo-600" },
-
-                        // --- CÁC TRẠNG THÁI MỚI BỔ SUNG ---
-                        { label: "Quên vào", value: stats.forgotIn, colorClass: "text-amber-700" },
-                        { label: "Quên ra", value: stats.forgotOut, colorClass: "text-amber-700" },
-                        { label: "Nghỉ chế độ", value: stats.lCheDo, colorClass: "text-sky-500" },
-                        { label: "Đi học", value: stats.lDiHoc, colorClass: "text-sky-600" },
-                        { label: "Công tác", value: stats.lCongTac, colorClass: "text-indigo-600" },
-                        { label: "Nghỉ bù", value: stats.lNghiBu, colorClass: "text-violet-500" },
-                        { label: "Thai sản", value: stats.lThaiSan, colorClass: "text-pink-500" },
-                        { label: "Ma chay", value: stats.lMaChay, colorClass: "text-slate-600" },
-                        { label: "Con KH", value: stats.lConKH, colorClass: "text-rose-500" },
-                        { label: "Kết hôn", value: stats.lKetHon, colorClass: "text-rose-600" },
+                        { label: "Tổng số ca", value: stats.total, color: "text-slate-600" },
+                        { label: "Hợp lệ", value: stats.hopLe, color: "text-green-600" },
+                        { label: "Vi phạm", value: stats.viPham, color: "text-red-600" },
+                        { label: "Nghỉ chế độ", value: stats.nghiCheDo, color: "text-sky-600" },
+                        { label: "Nghỉ KL", value: stats.nghiKL, color: "text-orange-600" },
                     ].map((stat, idx) => (
-                        <div key={idx} className="hrm-card bg-card border-border p-3 flex flex-col items-center justify-center text-center shadow-sm hover:-translate-y-1 transition-transform">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1 line-clamp-1" title={stat.label}>
-                                {stat.label}
-                            </span>
-                            <span className={`text-xl font-black leading-none ${stat.colorClass}`}>
-                                {stat.value}
-                            </span>
+                        <div key={idx} className="hrm-card bg-card border-border p-4 flex flex-col items-center shadow-sm">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">{stat.label}</span>
+                            <span className={`text-2xl font-black ${stat.color}`}>{stat.value}</span>
                         </div>
                     ))}
                 </div>
@@ -900,21 +1277,30 @@ export default function AttendanceLogPage() {
             {/* ==================================================== */}
 
             {/* 1. Modal Xem Ảnh */}
-            {imageModal.isOpen && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-in fade-in" onClick={() => setImageModal({ ...imageModal, isOpen: false })}>
+            {imageModal.isOpen && isMounted && typeof document !== "undefined" && createPortal(
+                <div
+                    className="fixed inset-0 bg-background/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 animate-in fade-in"
+                    onClick={() => setImageModal({ ...imageModal, isOpen: false })}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+                >
                     <div className="relative max-w-3xl w-full flex flex-col items-center" onClick={e => e.stopPropagation()}>
                         <button onClick={() => setImageModal({ ...imageModal, isOpen: false })} className="absolute -top-10 right-0 p-2 bg-destructive text-destructive-foreground rounded-full hover:scale-110 transition-transform shadow-lg">
                             <X size={20} />
                         </button>
-                        <img src={imageModal.src} alt="Phóng to" className="max-w-full max-h-[80vh] rounded-xl shadow-2xl border-4 border-background" />
+                        <img src={imageModal.src} alt="Phóng to" className="max-w-full max-h-[85vh] rounded-xl shadow-2xl border-4 border-background object-contain bg-muted" />
                         <p className="mt-4 text-foreground font-bold text-lg bg-background/50 px-4 py-1 rounded-full backdrop-blur-md">{imageModal.title}</p>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* 2. Modal Gian Lận */}
-            {fraudModal.isOpen && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in" onClick={() => setFraudModal({ ...fraudModal, isOpen: false })}>
+            {fraudModal.isOpen && isMounted && typeof document !== "undefined" && createPortal(
+                <div
+                    className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in"
+                    onClick={() => setFraudModal({ ...fraudModal, isOpen: false })}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+                >
                     <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-2xl border-t-4 border-t-destructive animate-in slide-in-from-bottom-4" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-2 text-destructive mb-2">
                             <AlertTriangle size={24} />
@@ -937,12 +1323,17 @@ export default function AttendanceLogPage() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* 3. Modal Giải Trình */}
-            {explainModal.isOpen && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in" onClick={() => setExplainModal({ ...explainModal, isOpen: false })}>
+            {explainModal.isOpen && isMounted && typeof document !== "undefined" && createPortal(
+                <div
+                    className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in"
+                    onClick={() => setExplainModal({ ...explainModal, isOpen: false })}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+                >
                     <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-2xl border-t-4 border-t-primary animate-in slide-in-from-bottom-4 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
 
                         <div className="flex items-center justify-between mb-4 border-b border-border pb-3 shrink-0">
@@ -974,11 +1365,22 @@ export default function AttendanceLogPage() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">Ảnh đính kèm (Tùy chọn)</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">
+                                        Ảnh đính kèm minh chứng <span className="text-destructive">*</span>
+                                    </label>
                                     <div className="relative">
-                                        <input type="file" id="fileUpload" accept="image/*" onChange={handleExplainFileChange} className="hidden" />
-                                        <label htmlFor="fileUpload" className="flex items-center justify-center gap-2 w-full p-3 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors text-muted-foreground text-[12px] font-bold">
-                                            <FileUp size={16} /> Chọn ảnh minh chứng
+                                        <input
+                                            type="file"
+                                            id="fileUpload"
+                                            accept="image/*"
+                                            onChange={handleExplainFileChange}
+                                            className="hidden"
+                                        />
+                                        <label
+                                            htmlFor="fileUpload"
+                                            className={`flex items-center justify-center gap-2 w-full p-3 border-2 border-dashed rounded-lg cursor-pointer transition-colors text-[12px] font-bold ${!explainModal.file ? 'border-destructive/50 text-destructive bg-destructive/5 hover:bg-destructive/10' : 'border-border text-muted-foreground hover:border-primary hover:bg-primary/5'}`}
+                                        >
+                                            <FileUp size={16} /> {explainModal.file ? 'Đã chọn ảnh (Bấm để đổi)' : 'Chọn ảnh minh chứng (Bắt buộc)'}
                                         </label>
                                     </div>
                                     {explainModal.previewUrl && (
@@ -998,7 +1400,8 @@ export default function AttendanceLogPage() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             <AttendanceDetailDrawer

@@ -9,6 +9,23 @@ import {
 } from "lucide-react";
 
 // ==========================================
+// CẤU HÌNH NGHIỆP VỤ
+// ==========================================
+// Danh sách ID các loại nghỉ phép được phép xin lùi ngày (quá khứ/hôm nay)
+// (VD: 3: Nghỉ ốm, 6, 9, 11, 12...)
+const ALLOW_PAST_DATE_TYPE_IDS = ['3', '6', '9', '11', '12'];
+
+// Lấy chuỗi ngày mai định dạng YYYY-MM-DD an toàn theo múi giờ local
+const getTomorrowDateStr = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const y = tomorrow.getFullYear();
+    const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const d = String(tomorrow.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+
+// ==========================================
 // TYPES & INTERFACES
 // ==========================================
 interface LeaveRequest {
@@ -111,14 +128,10 @@ export default function LeaveRequestsPage() {
             try {
                 const managerRes = await fetch(`${API_BASE_URL}/api/employees/managers`, { headers });
                 if (managerRes.ok) {
-                    // Khai báo rõ rawManagers là mảng chứa các object kiểu Manager
                     const rawManagers: Manager[] = await managerRes.json();
-
-                    // TypeScript giờ đã hiểu m là Manager
                     const uniqueManagers = Array.from(
                         new Map(rawManagers.map(m => [m.username, m])).values()
                     );
-
                     setManagers(uniqueManagers);
                 }
             } catch (e) {
@@ -157,6 +170,32 @@ export default function LeaveRequestsPage() {
         return () => clearTimeout(timer);
     }, [fetchRequests]);
 
+    // XỬ LÝ UX: Tự động xóa ngày không hợp lệ khi đổi Loại Nghỉ Phép
+    useEffect(() => {
+        if (formData.type_id && !ALLOW_PAST_DATE_TYPE_IDS.includes(formData.type_id.toString())) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let updated = false;
+            let newFromDate = formData.from_date;
+            let newToDate = formData.to_date;
+
+            // Nếu ngày đang chọn <= hôm nay, xóa trắng vì loại phép này bắt buộc phải xin trước
+            if (newFromDate && new Date(newFromDate) <= today) {
+                newFromDate = "";
+                updated = true;
+            }
+            if (newToDate && new Date(newToDate) <= today) {
+                newToDate = "";
+                updated = true;
+            }
+
+            if (updated) {
+                setFormData((prev: any) => ({ ...prev, from_date: newFromDate, to_date: newToDate }));
+            }
+        }
+    }, [formData.type_id]);
+
     // ==========================================
     // UI ACTIONS (FORM & MODALS)
     // ==========================================
@@ -166,8 +205,9 @@ export default function LeaveRequestsPage() {
             ...initialFormState,
             username: currentUser.username,
             fullname: currentUser.fullname,
-            from_date: new Date().toISOString().split('T')[0],
-            to_date: new Date().toISOString().split('T')[0]
+            // Không set mặc định ngày hôm nay nữa, bắt người dùng phải chọn
+            from_date: "",
+            to_date: ""
         });
         setPreviewUrl(null);
         setIsPanelOpen(true);
@@ -230,8 +270,19 @@ export default function LeaveRequestsPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        // 1. VALIDATION: Ngày bắt đầu > kết thúc
         if (new Date(formData.from_date) > new Date(formData.to_date)) {
             alert("Lỗi: Ngày bắt đầu không thể lớn hơn ngày kết thúc!");
+            return;
+        }
+
+        // 2. VALIDATION: Logic chặn xin lùi ngày
+        const selectedDate = new Date(formData.from_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (!ALLOW_PAST_DATE_TYPE_IDS.includes(formData.type_id.toString()) && selectedDate <= today) {
+            alert("Lỗi: Loại nghỉ phép này bắt buộc phải xin trước. Vui lòng chọn ngày từ ngày mai trở đi!");
             return;
         }
 
@@ -287,6 +338,10 @@ export default function LeaveRequestsPage() {
         } catch (e) { alert("Lỗi kết nối!"); }
     };
 
+    // Xác định thuộc tính min cho Form Chọn Ngày
+    const isPastDateAllowed = ALLOW_PAST_DATE_TYPE_IDS.includes(formData.type_id?.toString());
+    const minDateAttr = isPastDateAllowed ? undefined : getTomorrowDateStr();
+
     // ==========================================
     // RENDER HELPERS
     // ==========================================
@@ -299,21 +354,12 @@ export default function LeaveRequestsPage() {
 
     const formatDate = (dateStr: string) => {
         if (!dateStr) return "";
-
-        // 1. Nếu API đã trả về sẵn định dạng DD/MM/YYYY (có dấu /) thì giữ nguyên
-        if (dateStr.includes("/")) {
-            return dateStr;
-        }
-
-        // 2. Cắt bỏ phần giờ nếu API trả về ISO String (VD: 2026-04-23T00:00:00)
+        if (dateStr.includes("/")) return dateStr;
         const datePart = dateStr.split("T")[0];
-
-        // 3. Nếu là định dạng YYYY-MM-DD thì format lại
         if (datePart.includes("-")) {
             const [y, m, d] = datePart.split("-");
             return `${d}/${m}/${y}`;
         }
-
         return dateStr;
     };
 
@@ -577,7 +623,14 @@ export default function LeaveRequestsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">Từ Ngày *</label>
-                                <input type="date" required value={formData.from_date} onChange={e => updateSessionLogic("from_date", e.target.value, formData)} className="hrm-input h-10 px-3 bg-background text-foreground rounded-lg border border-border text-[12px] font-bold w-full" />
+                                <input
+                                    type="date"
+                                    required
+                                    min={minDateAttr}
+                                    value={formData.from_date}
+                                    onChange={e => updateSessionLogic("from_date", e.target.value, formData)}
+                                    className="hrm-input h-10 px-3 bg-background text-foreground rounded-lg border border-border text-[12px] font-bold w-full"
+                                />
                             </div>
                             <div>
                                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">Buổi *</label>
@@ -592,7 +645,14 @@ export default function LeaveRequestsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">Đến Ngày *</label>
-                                <input type="date" required value={formData.to_date} onChange={e => updateSessionLogic("to_date", e.target.value, formData)} className="hrm-input h-10 px-3 bg-background text-foreground rounded-lg border border-border text-[12px] font-bold w-full" />
+                                <input
+                                    type="date"
+                                    required
+                                    min={minDateAttr}
+                                    value={formData.to_date}
+                                    onChange={e => updateSessionLogic("to_date", e.target.value, formData)}
+                                    className="hrm-input h-10 px-3 bg-background text-foreground rounded-lg border border-border text-[12px] font-bold w-full"
+                                />
                             </div>
                             <div>
                                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">Buổi *</label>

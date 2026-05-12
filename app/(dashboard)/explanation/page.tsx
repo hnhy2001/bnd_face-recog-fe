@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { API_BASE_URL } from "@/lib/api-client";
 import {
     Plus, Edit2, Trash2, X, Save, Search, Filter,
@@ -32,6 +33,7 @@ export default function ExplanationsPage() {
     const [explanations, setExplanations] = useState<Explanation[]>([]);
     const [shiftCategories, setShiftCategories] = useState<ShiftCategory[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isMounted, setIsMounted] = useState(false);
 
     // --- States User/Phân quyền ---
     const [currentUser, setCurrentUser] = useState({ username: "", role: "user" });
@@ -56,6 +58,18 @@ export default function ExplanationsPage() {
     };
     const [formData, setFormData] = useState<any>(initialFormState);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+    const getFullImageUrl = (path?: string | null) => {
+        if (!path) return "";
+        // Nếu ảnh đã là link http/https đầy đủ (từ cloud) thì giữ nguyên
+        if (path.startsWith("http://") || path.startsWith("https://")) return path;
+
+        // Loại bỏ dấu / ở cuối API_BASE_URL (nếu có) và dấu / ở đầu path (nếu có)
+        const baseUrl = API_BASE_URL.replace(/\/$/, "");
+        const cleanPath = path.startsWith("/") ? path : `/${path}`;
+
+        return `${baseUrl}${cleanPath}`;
+    };
 
     // ==========================================
     // INITIALIZATION & FETCH DATA
@@ -92,6 +106,10 @@ export default function ExplanationsPage() {
         };
 
         fetchInitialData();
+    }, []);
+
+    useEffect(() => {
+        setIsMounted(true);
     }, []);
 
     const fetchExplanations = useCallback(async () => {
@@ -151,7 +169,7 @@ export default function ExplanationsPage() {
             reason: item.reason,
             attached_file: null // Will only update if user selects new file
         });
-        setPreviewUrl(item.attached_file ? (item.attached_file.startsWith('/') ? item.attached_file : '/' + item.attached_file) : null);
+        setPreviewUrl(item.attached_file ? getFullImageUrl(item.attached_file) : null);
         setIsPanelOpen(true);
     };
 
@@ -309,165 +327,165 @@ export default function ExplanationsPage() {
                     </div>
 
                     <div className="flex-1 overflow-visible md:overflow-y-auto custom-scrollbar relative w-full bg-card">
-                    {isLoading ? (
-                        <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
-                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-[11px] font-bold uppercase tracking-widest">Đang tải dữ liệu...</span>
-                        </div>
-                    ) : explanations.length === 0 ? (
-                        <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2">
-                            <MessageSquareWarning className="w-10 h-10 opacity-20 mb-2" />
-                            <span className="text-[11px] font-bold uppercase tracking-widest">Không tìm thấy giải trình nào.</span>
-                        </div>
-                    ) : (
-                        <>
-                            {/* MOBILE VIEW */}
-                            <div className="md:hidden flex flex-col p-3 gap-3 bg-muted/10 pb-4">
-                                {explanations.map((item) => {
-                                    const statusInt = parseInt(item.status.toString());
-                                    const canApprove = (currentUser.role === "admin" || currentUser.role === "manager");
-
-                                    return (
-                                        <div key={item.id} className="bg-card border border-border rounded-xl p-4 shadow-sm relative">
-                                            <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                                                {canApprove && statusInt === 1 && (
-                                                    <>
-                                                        <button onClick={() => { if (confirm("Duyệt đơn này?")) callStatusAPI(item.id, "approve") }} className="p-1.5 text-emerald-600 bg-emerald-500/10 rounded-md border border-emerald-500/20 hover:bg-emerald-500/20">
-                                                            <Check size={14} />
-                                                        </button>
-                                                        <button onClick={() => { if (confirm("Từ chối đơn này?")) callStatusAPI(item.id, "reject") }} className="p-1.5 text-destructive bg-destructive/10 rounded-md border border-destructive/20 hover:bg-destructive/20">
-                                                            <Ban size={14} />
-                                                        </button>
-                                                    </>
-                                                )}
-                                                {statusInt === 1 && item.username === currentUser.username && (
-                                                    <button onClick={() => handleEdit(item)} className="p-1.5 text-primary bg-primary/10 rounded-md border border-primary/20 hover:bg-primary/20">
-                                                        <Edit2 size={14} />
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            <div className="pr-16 mb-3">
-                                                <h4 className="text-sm font-bold text-primary mb-1">{item.username}</h4>
-                                                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{formatDate(item.date)}</p>
-                                            </div>
-
-                                            <div className="mb-3">{getStatusUI(item.status)}</div>
-
-                                            <div className="bg-muted/50 p-3 rounded-lg border border-border w-full text-[12px] flex flex-col gap-2">
-                                                <div>
-                                                    <span className="text-[9px] font-black text-muted-foreground uppercase block mb-0.5">Ca Làm Việc</span>
-                                                    <span className="font-bold">{item.shift_name || item.shift_code || "Không xác định"}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="text-[9px] font-black text-muted-foreground uppercase block mb-0.5">Lý do</span>
-                                                    <i className="text-muted-foreground">{item.reason}</i>
-                                                </div>
-                                                {item.attached_file && (
-                                                    <button onClick={() => setImageModalUrl(item.attached_file as string)} className="text-[10px] font-bold text-primary flex items-center gap-1 mt-1 w-fit hover:underline">
-                                                        <ImageIcon size={12} /> Xem đính kèm
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )
-                                })}
+                        {isLoading ? (
+                            <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-[11px] font-bold uppercase tracking-widest">Đang tải dữ liệu...</span>
                             </div>
+                        ) : explanations.length === 0 ? (
+                            <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-2">
+                                <MessageSquareWarning className="w-10 h-10 opacity-20 mb-2" />
+                                <span className="text-[11px] font-bold uppercase tracking-widest">Không tìm thấy giải trình nào.</span>
+                            </div>
+                        ) : (
+                            <>
+                                {/* MOBILE VIEW */}
+                                <div className="md:hidden flex flex-col p-3 gap-3 bg-muted/10 pb-4">
+                                    {explanations.map((item) => {
+                                        const statusInt = parseInt(item.status.toString());
+                                        const canApprove = (currentUser.role === "admin" || currentUser.role === "manager");
 
-                            {/* DESKTOP VIEW */}
-                            <div className="hidden md:block w-full">
-                                <table className="w-full text-left border-collapse">
-                                    <thead className="sticky top-0 z-[30] bg-muted">
-                                        <tr>
-                                            {["MÃ NV", "NGÀY & CA", "LÝ DO", "TRẠNG THÁI", "THAO TÁC"].map((h, i) => (
-                                                <th key={i} className="py-3 px-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap border-b border-border">
-                                                    {h}
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {explanations.map((item) => {
-                                            const statusInt = parseInt(item.status.toString());
-                                            const canApprove = (currentUser.role === "admin" || currentUser.role === "manager");
-
-                                            return (
-                                                <tr key={item.id} className="hover:bg-accent/50 transition-colors border-b border-border group">
-                                                    <td className="py-3 px-5 whitespace-nowrap">
-                                                        <strong className="text-[13px] font-black text-primary block">{item.username}</strong>
-                                                    </td>
-                                                    <td className="py-3 px-5 whitespace-nowrap">
-                                                        <span className="text-[12px] font-bold text-foreground block">{formatDate(item.date)}</span>
-                                                        <span className="text-[10px] font-bold text-muted-foreground mt-0.5 flex items-center gap-1">
-                                                            ↳ {item.shift_name || item.shift_code || "Không xác định"}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-3 px-5">
-                                                        <div className="text-[12px] text-foreground italic max-w-sm whitespace-normal">
-                                                            {item.reason}
-                                                        </div>
-                                                        {item.attached_file && (
-                                                            <button onClick={() => setImageModalUrl(item.attached_file as string)} className="text-[10px] font-bold text-primary flex items-center gap-1 mt-1 hover:underline">
-                                                                <ImageIcon size={12} /> Xem đính kèm
+                                        return (
+                                            <div key={item.id} className="bg-card border border-border rounded-xl p-4 shadow-sm relative">
+                                                <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                                                    {canApprove && statusInt === 1 && (
+                                                        <>
+                                                            <button onClick={() => { if (confirm("Duyệt đơn này?")) callStatusAPI(item.id, "approve") }} className="p-1.5 text-emerald-600 bg-emerald-500/10 rounded-md border border-emerald-500/20 hover:bg-emerald-500/20">
+                                                                <Check size={14} />
                                                             </button>
-                                                        )}
-                                                    </td>
-                                                    <td className="py-3 px-5 whitespace-nowrap">
-                                                        {getStatusUI(item.status)}
-                                                    </td>
-                                                    <td className="py-3 px-5 whitespace-nowrap">
-                                                        <div className="flex items-center gap-2">
-                                                            {canApprove && statusInt === 1 && (
-                                                                <>
-                                                                    <button onClick={() => { if (confirm("Duyệt đơn này?")) callStatusAPI(item.id, "approve") }} className="p-2 text-emerald-600 bg-emerald-500/10 rounded-lg hover:bg-emerald-500/20 border border-emerald-500/20" title="Duyệt">
-                                                                        <Check size={14} />
-                                                                    </button>
-                                                                    <button onClick={() => { if (confirm("Từ chối đơn này?")) callStatusAPI(item.id, "reject") }} className="p-2 text-destructive bg-destructive/10 rounded-lg hover:bg-destructive/20 border border-destructive/20" title="Từ chối">
-                                                                        <Ban size={14} />
-                                                                    </button>
-                                                                </>
-                                                            )}
-                                                            {statusInt === 1 && item.username === currentUser.username && (
-                                                                <button onClick={() => handleEdit(item)} className="p-2 text-primary bg-primary/10 rounded-lg hover:bg-primary/20 border border-primary/20" title="Sửa">
-                                                                    <Edit2 size={14} />
+                                                            <button onClick={() => { if (confirm("Từ chối đơn này?")) callStatusAPI(item.id, "reject") }} className="p-1.5 text-destructive bg-destructive/10 rounded-md border border-destructive/20 hover:bg-destructive/20">
+                                                                <Ban size={14} />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    {statusInt === 1 && item.username === currentUser.username && (
+                                                        <button onClick={() => handleEdit(item)} className="p-1.5 text-primary bg-primary/10 rounded-md border border-primary/20 hover:bg-primary/20">
+                                                            <Edit2 size={14} />
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                <div className="pr-16 mb-3">
+                                                    <h4 className="text-sm font-bold text-primary mb-1">{item.username}</h4>
+                                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{formatDate(item.date)}</p>
+                                                </div>
+
+                                                <div className="mb-3">{getStatusUI(item.status)}</div>
+
+                                                <div className="bg-muted/50 p-3 rounded-lg border border-border w-full text-[12px] flex flex-col gap-2">
+                                                    <div>
+                                                        <span className="text-[9px] font-black text-muted-foreground uppercase block mb-0.5">Ca Làm Việc</span>
+                                                        <span className="font-bold">{item.shift_name || item.shift_code || "Không xác định"}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-[9px] font-black text-muted-foreground uppercase block mb-0.5">Lý do</span>
+                                                        <i className="text-muted-foreground">{item.reason}</i>
+                                                    </div>
+                                                    {item.attached_file && (
+                                                        <button onClick={() => setImageModalUrl(item.attached_file as string)} className="text-[10px] font-bold text-primary flex items-center gap-1 mt-1 w-fit hover:underline">
+                                                            <ImageIcon size={12} /> Xem đính kèm
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+
+                                {/* DESKTOP VIEW */}
+                                <div className="hidden md:block w-full">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="sticky top-0 z-[30] bg-muted">
+                                            <tr>
+                                                {["MÃ NV", "NGÀY & CA", "LÝ DO", "TRẠNG THÁI", "THAO TÁC"].map((h, i) => (
+                                                    <th key={i} className="py-3 px-5 text-[10px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap border-b border-border">
+                                                        {h}
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {explanations.map((item) => {
+                                                const statusInt = parseInt(item.status.toString());
+                                                const canApprove = (currentUser.role === "admin" || currentUser.role === "manager");
+
+                                                return (
+                                                    <tr key={item.id} className="hover:bg-accent/50 transition-colors border-b border-border group">
+                                                        <td className="py-3 px-5 whitespace-nowrap">
+                                                            <strong className="text-[13px] font-black text-primary block">{item.username}</strong>
+                                                        </td>
+                                                        <td className="py-3 px-5 whitespace-nowrap">
+                                                            <span className="text-[12px] font-bold text-foreground block">{formatDate(item.date)}</span>
+                                                            <span className="text-[10px] font-bold text-muted-foreground mt-0.5 flex items-center gap-1">
+                                                                ↳ {item.shift_name || item.shift_code || "Không xác định"}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3 px-5">
+                                                            <div className="text-[12px] text-foreground italic max-w-sm whitespace-normal">
+                                                                {item.reason}
+                                                            </div>
+                                                            {item.attached_file && (
+                                                                <button onClick={() => setImageModalUrl(item.attached_file as string)} className="text-[10px] font-bold text-primary flex items-center gap-1 mt-1 hover:underline">
+                                                                    <ImageIcon size={12} /> Xem đính kèm
                                                                 </button>
                                                             )}
-                                                            {/* Hiển thị dấu gạch nếu không có quyền gì */}
-                                                            {!(canApprove && statusInt === 1) && !(statusInt === 1 && item.username === currentUser.username) && (
-                                                                <span className="text-muted-foreground text-[10px] font-bold">---</span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                {/* PHÂN TRANG */}
-                {!isLoading && totalPages > 0 && (
-                    <div className="flex-none flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-t border-border bg-card">
-                        <div className="flex items-center gap-1">
-                            <button disabled={page === 1} onClick={() => setPage(1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsLeft size={16} /></button>
-                            <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronLeft size={16} /></button>
-                            <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mx-3">Trang {page} / {totalPages}</span>
-                            <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronRight size={16} /></button>
-                            <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsRight size={16} /></button>
-                        </div>
-                        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                            <span>Tổng: <strong className="text-foreground">{totalItems}</strong></span>
-                            <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="p-1 border border-border rounded bg-background text-foreground cursor-pointer outline-none">
-                                <option value="15">15 dòng</option>
-                                <option value="30">30 dòng</option>
-                                <option value="50">50 dòng</option>
-                            </select>
-                        </div>
+                                                        </td>
+                                                        <td className="py-3 px-5 whitespace-nowrap">
+                                                            {getStatusUI(item.status)}
+                                                        </td>
+                                                        <td className="py-3 px-5 whitespace-nowrap">
+                                                            <div className="flex items-center gap-2">
+                                                                {canApprove && statusInt === 1 && (
+                                                                    <>
+                                                                        <button onClick={() => { if (confirm("Duyệt đơn này?")) callStatusAPI(item.id, "approve") }} className="p-2 text-emerald-600 bg-emerald-500/10 rounded-lg hover:bg-emerald-500/20 border border-emerald-500/20" title="Duyệt">
+                                                                            <Check size={14} />
+                                                                        </button>
+                                                                        <button onClick={() => { if (confirm("Từ chối đơn này?")) callStatusAPI(item.id, "reject") }} className="p-2 text-destructive bg-destructive/10 rounded-lg hover:bg-destructive/20 border border-destructive/20" title="Từ chối">
+                                                                            <Ban size={14} />
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                                {statusInt === 1 && item.username === currentUser.username && (
+                                                                    <button onClick={() => handleEdit(item)} className="p-2 text-primary bg-primary/10 rounded-lg hover:bg-primary/20 border border-primary/20" title="Sửa">
+                                                                        <Edit2 size={14} />
+                                                                    </button>
+                                                                )}
+                                                                {/* Hiển thị dấu gạch nếu không có quyền gì */}
+                                                                {!(canApprove && statusInt === 1) && !(statusInt === 1 && item.username === currentUser.username) && (
+                                                                    <span className="text-muted-foreground text-[10px] font-bold">---</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
                     </div>
-                )}
+
+                    {/* PHÂN TRANG */}
+                    {!isLoading && totalPages > 0 && (
+                        <div className="flex-none flex flex-col sm:flex-row justify-between items-center gap-4 p-4 border-t border-border bg-card">
+                            <div className="flex items-center gap-1">
+                                <button disabled={page === 1} onClick={() => setPage(1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsLeft size={16} /></button>
+                                <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronLeft size={16} /></button>
+                                <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mx-3">Trang {page} / {totalPages}</span>
+                                <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronRight size={16} /></button>
+                                <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-2 border border-border rounded-lg bg-background hover:bg-muted disabled:opacity-50 transition-colors"><ChevronsRight size={16} /></button>
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                                <span>Tổng: <strong className="text-foreground">{totalItems}</strong></span>
+                                <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="p-1 border border-border rounded bg-background text-foreground cursor-pointer outline-none">
+                                    <option value="15">15 dòng</option>
+                                    <option value="30">30 dòng</option>
+                                    <option value="50">50 dòng</option>
+                                </select>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -519,10 +537,12 @@ export default function ExplanationsPage() {
                         </div>
 
                         <div className="p-4 bg-muted/30 border border-border rounded-xl">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">Ảnh đính kèm (Tùy chọn)</label>
+                            {/* DÒNG NÀY ĐÃ ĐƯỢC CHỈNH SỬA TỪ (TÙY CHỌN) SANG BẮT BUỘC (*) */}
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">Ảnh đính kèm *</label>
 
                             <div className="relative border-2 border-dashed border-border rounded-lg bg-background p-4 text-center hover:bg-muted/50 transition-colors cursor-pointer group">
-                                <input type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                                {/* DÒNG NÀY ĐÃ ĐƯỢC THÊM required={!editingId} */}
+                                <input type="file" accept="image/*" onChange={handleFileChange} required={!editingId} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                                 <div className="flex flex-col items-center justify-center gap-2">
                                     <ImageIcon className="w-8 h-8 text-muted-foreground group-hover:text-primary transition-colors" />
                                     <span className="text-[11px] font-bold text-muted-foreground">Kéo thả hoặc Click chọn ảnh</span>
@@ -549,23 +569,34 @@ export default function ExplanationsPage() {
             </div>
 
             {/* ==================================================== */}
-            {/* IMAGE MODAL OVERLAY */}
+            {/* IMAGE MODAL OVERLAY (DÙNG PORTAL ĐỂ FIX Z-INDEX) */}
             {/* ==================================================== */}
-            {imageModalUrl && (
-                <div className="fixed inset-0 bg-background/90 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-in fade-in" onClick={() => setImageModalUrl(null)}>
-                    <div className="relative max-w-[90vw] max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                        <button onClick={() => setImageModalUrl(null)} className="absolute -top-4 -right-4 md:-top-6 md:-right-6 bg-destructive text-destructive-foreground p-2 rounded-full shadow-lg hover:scale-110 transition-transform">
-                            <X size={18} />
+            {imageModalUrl && isMounted && typeof document !== "undefined" && createPortal(
+                <div
+                    className="fixed inset-0 z-[99999] flex items-center justify-center bg-foreground/90 backdrop-blur-sm animate-in fade-in p-4"
+                    onClick={() => setImageModalUrl(null)}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+                >
+                    <div
+                        className="relative max-w-3xl w-full flex flex-col items-center animate-in zoom-in-95 duration-200"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setImageModalUrl(null)}
+                            className="absolute -top-12 right-0 lg:-right-12 bg-destructive hover:bg-destructive/90 text-white p-2 rounded-full shadow-lg transition-transform hover:scale-110"
+                        >
+                            <X className="w-5 h-5" />
                         </button>
                         <img
-                            src={imageModalUrl.startsWith('/') ? imageModalUrl : '/' + imageModalUrl}
-                            alt="Attachment Full"
-                            className="max-w-full max-h-[85vh] rounded-xl shadow-2xl border border-border object-contain bg-muted"
+                            src={getFullImageUrl(imageModalUrl)}
+                            alt="Ảnh đính kèm"
+                            className="w-auto max-h-[85vh] rounded-xl border-4 border-background shadow-2xl object-contain bg-muted"
                         />
                     </div>
-                </div>
+                </div>,
+                document.body // <-- Bắn thẳng ra body trình duyệt
             )}
 
-        </div>
+        </div> // Đây là thẻ đóng div bao ngoài cùng của return
     );
 }

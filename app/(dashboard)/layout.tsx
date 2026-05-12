@@ -109,6 +109,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { id: "nav-tb-online", label: "MỞ TB CHẤM CÔNG", href: "/verify_personal", icon: Camera, roles: ["admin", "manager"] },
     { id: "nav-tb-local", label: "MỞ TB CHẤM CÔNG LOCAL", href: "/verify_personal-local", icon: Camera, roles: ["admin", "manager"] },
     { id: "nav-user_info", label: "THÔNG TIN NHÂN VIÊN", href: "/profile", icon: UserCircle, roles: ["admin", "manager", "user"] },
+    { id: "nav-access-logs", label: "Lịch sử truy cập", href: "/access-logs", icon: Wifi, roles: ["admin"] },
+    { id: "nav-employee-profile", label: "Hồ sơ nhân sự", href: "/employee-profile", icon: UserCircle, roles: ["admin"], newTab: true },
     { id: "nav-wifi", label: "CẤU HÌNH WIFI", href: "/wifi", icon: Wifi, roles: ["admin"] },
   ];
 
@@ -139,7 +141,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             if (!item.roles.includes(role)) return null;
             const isActive = pathname === item.href;
             return (
-              <Link key={item.id} href={item.href} className={`
+              <Link key={item.id} href={item.href} target={item.newTab ? "_blank" : undefined}
+                rel={item.newTab ? "noopener noreferrer" : undefined} className={`
                 flex items-center gap-3 p-3 rounded-xl transition-all
                 ${isActive ? "bg-primary text-primary-foreground" : "hover:bg-secondary text-muted-foreground hover:text-foreground"}
               `}>

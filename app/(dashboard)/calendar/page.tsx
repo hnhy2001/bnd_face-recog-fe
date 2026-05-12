@@ -5,8 +5,22 @@ import { API_BASE_URL } from "@/lib/api-client";
 import {
     CalendarClock, Plus, Edit2, X, Save, Clock,
     User, CalendarDays, Plane, AlertCircle, Calendar as CalendarIcon, FileText,
-    ChevronDown, Search, Check
+    ChevronDown, Search, Check, ImageIcon
 } from "lucide-react";
+
+// ==========================================
+// CẤU HÌNH NGHIỆP VỤ
+// ==========================================
+// Danh sách ID các loại nghỉ phép được phép xin lùi ngày (quá khứ/hôm nay)
+// VD: Nghỉ ốm (3, 6, 9, 11, 12...)
+const ALLOW_PAST_DATE_TYPE_IDS = ['3', '6', '9', '11', '12'];
+
+// Lấy chuỗi ngày mai định dạng YYYY-MM-DD
+const getTomorrowDateStr = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+};
 
 // ==========================================
 // TYPES & INTERFACES
@@ -93,6 +107,39 @@ export default function PersonalCalendarPage() {
 
         fetchMetadata();
     }, []);
+
+    // Logic đồng bộ Session khi xin nghỉ trong cùng 1 ngày
+    useEffect(() => {
+        if (leaveForm.from_date && leaveForm.to_date && leaveForm.from_date === leaveForm.to_date) {
+            setLeaveForm(prev => ({ ...prev, to_session: prev.from_session }));
+        }
+    }, [leaveForm.from_date, leaveForm.to_date, leaveForm.from_session]);
+
+    // XỬ LÝ UX: Tự động xóa ngày không hợp lệ khi đổi Loại Nghỉ Phép
+    useEffect(() => {
+        if (leaveForm.type_id && !ALLOW_PAST_DATE_TYPE_IDS.includes(leaveForm.type_id.toString())) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let updated = false;
+            let newFromDate = leaveForm.from_date;
+            let newToDate = leaveForm.to_date;
+
+            // Nếu ngày chọn <= hôm nay, xóa trắng vì loại phép này yêu cầu xin trước
+            if (newFromDate && new Date(newFromDate) <= today) {
+                newFromDate = "";
+                updated = true;
+            }
+            if (newToDate && new Date(newToDate) <= today) {
+                newToDate = "";
+                updated = true;
+            }
+
+            if (updated) {
+                setLeaveForm(prev => ({ ...prev, from_date: newFromDate, to_date: newToDate }));
+            }
+        }
+    }, [leaveForm.type_id]);
 
     // Handle click outside for Employee Dropdown
     useEffect(() => {
@@ -252,7 +299,7 @@ export default function PersonalCalendarPage() {
     }, [fetchCalendar]);
 
     // ==========================================
-    // HELPERS & UI LOGIC (ĐÃ CẬP NHẬT TRẠNG THÁI MỚI)
+    // HELPERS & UI LOGIC
     // ==========================================
     const isViewingOtherUser = selectedUsername !== currentUser.username;
 
@@ -266,16 +313,8 @@ export default function PersonalCalendarPage() {
         if (isViewingOtherUser || rec.is_explained) return true;
         const status = rec.status ?? null;
 
-        // CHÚ Ý: Cập nhật điều kiện khóa giải trình với các trạng thái từ 12 -> 19
-        if (
-            status === 1 ||
-            status === 7 ||
-            status === 4 ||
-            status === 5 ||
-            (status !== null && status >= 12 && status <= 19)
-        ) {
-            return true;
-        }
+        const isViolation = [0, 2, 3, 6, 10, 11].includes(status as number);
+        if (!isViolation) return true;
 
         if (!rec.date) return true;
         const thisDate = new Date(rec.date + 'T00:00:00');
@@ -287,30 +326,13 @@ export default function PersonalCalendarPage() {
         return false;
     };
 
-    // Cập nhật mapping danh sách trạng thái mới từ HTML qua Tailwind UI
     const getStatusInfo = (status: number | undefined, isWeekend: boolean) => {
-        if (status === 1) return { label: '✔️ Đúng giờ', colorClass: 'text-green-600 bg-green-50 border-green-200 dark:bg-green-900/20' };
-        if (status === 2) return { label: '⚠️ Đi muộn', colorClass: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20' };
-        if (status === 3) return { label: '⚠️ Về sớm', colorClass: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20' };
-        if (status === 6) return { label: '⚠️ Muộn & Sớm', colorClass: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20' };
-        if (status === 0) return { label: '❌ Vắng mặt', colorClass: 'text-destructive bg-destructive/10 border-destructive/20' };
-        if (status === 4) return { label: '📅 Nghỉ phép', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
+        if ([1, 7, 9, 13, 14, 20].includes(status as number)) return { label: status === 20 ? '⏰ Làm thêm OT' : (status === 1 ? '✔️ Đúng giờ' : (status === 7 ? '⚡ Đang có mặt' : '✔️ Hợp lệ')), colorClass: 'text-green-600 bg-green-50 border-green-200 dark:bg-green-900/20' };
+        if ([2, 3, 6, 10, 11].includes(status as number)) return { label: status === 2 ? '⚠️ Đi muộn' : (status === 3 ? '⚠️ Về sớm' : (status === 6 ? '⚠️ Muộn & Sớm' : '❓ Quên quẹt thẻ')), colorClass: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20' };
+        if (status === 0) return { label: '🚫 Vắng mặt', colorClass: 'text-destructive bg-destructive/10 border-destructive/20' };
+        if ([4, 12, 15, 16, 17, 18, 19, 21, 22].includes(status as number)) return { label: '📅 Nghỉ chế độ', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
         if (status === 5) return { label: '📅 Nghỉ KL', colorClass: 'text-muted-foreground bg-muted border-border' };
-        if (status === 7) return { label: '⚡ Đang có mặt', colorClass: 'text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/20' };
         if (status === 8) return { label: '➖ Chưa có lịch', colorClass: 'text-muted-foreground bg-muted border-border' };
-        if (status === 9) return { label: '⏱️ Chế độ 7h', colorClass: 'text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/20' };
-
-        // MÃ TRẠNG THÁI MỚI TỪ HTML
-        if (status === 10) return { label: '❓ Quên vào', colorClass: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20' };
-        if (status === 11) return { label: '❓ Quên ra', colorClass: 'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/20' };
-        if (status === 12) return { label: '🏖️ Nghỉ chế độ', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
-        if (status === 13) return { label: '📚 Đi học', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
-        if (status === 14) return { label: '💼 Công tác', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
-        if (status === 15) return { label: '🔄 Nghỉ bù', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
-        if (status === 16) return { label: '👶 Thai sản', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
-        if (status === 17) return { label: '⚫ Ma chay', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
-        if (status === 18) return { label: '💍 Con kết hôn', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
-        if (status === 19) return { label: '💒 Kết hôn', colorClass: 'text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/20' };
 
         if (isWeekend) return { label: '🌿 Nghỉ cuối tuần', colorClass: 'text-green-700 bg-green-50 border-green-200 italic dark:bg-green-900/20' };
         return { label: '— Chưa có dữ liệu', colorClass: 'text-muted-foreground bg-muted/50 border-border italic' };
@@ -344,6 +366,17 @@ export default function PersonalCalendarPage() {
 
     const submitLeave = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // VALIDATION: Kiểm tra quy tắc ngày lùi
+        const selectedDate = new Date(leaveForm.from_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (!ALLOW_PAST_DATE_TYPE_IDS.includes(leaveForm.type_id.toString()) && selectedDate <= today) {
+            alert("Lỗi: Loại nghỉ phép này bắt buộc phải xin trước. Vui lòng chọn ngày từ ngày mai trở đi!");
+            return;
+        }
+
         const formData = new FormData();
         const selEmp = employees.find(e => e.username === selectedUsername);
 
@@ -383,7 +416,13 @@ export default function PersonalCalendarPage() {
         formData.append('shift_code', explainForm.shift_code);
         formData.append('reason', explainForm.reason);
         formData.append('status', '1');
-        if (explainForm.file) formData.append('attached_file', explainForm.file);
+
+        if (explainForm.file) {
+            formData.append('attached_file', explainForm.file);
+        } else {
+            alert("Vui lòng đính kèm hình ảnh minh chứng!");
+            return;
+        }
 
         try {
             const res = await fetch(`${API_BASE_URL}/api/explanations`, {
@@ -401,6 +440,10 @@ export default function PersonalCalendarPage() {
             }
         } catch (err) { alert('Lỗi kết nối máy chủ!'); }
     };
+
+    // Xác định thuộc tính min động cho Date Input trong form
+    const isPastDateAllowed = ALLOW_PAST_DATE_TYPE_IDS.includes(leaveForm.type_id.toString());
+    const minDateAttr = isPastDateAllowed ? undefined : getTomorrowDateStr();
 
     // ==========================================
     // RENDERERS
@@ -538,14 +581,12 @@ export default function PersonalCalendarPage() {
                                         onClick={() => window.innerWidth <= 768 && setActiveMobileSheet(dayInfo)}
                                         className={`p-1 md:p-2 border rounded-xl flex flex-col items-center md:items-stretch justify-center md:justify-start gap-0.5 md:gap-1 transition-colors relative overflow-hidden cursor-pointer md:cursor-default aspect-square md:aspect-auto md:min-h-[130px] ${bgClass}`}
                                     >
-                                        {/* Ngày: Mobile căn giữa, Desktop nằm góc */}
                                         <div className="flex justify-center md:justify-between items-start mb-0 md:mb-1 shrink-0 w-full">
                                             <span className={`text-[12px] md:text-sm font-black flex items-center justify-center ${dayInfo.isToday ? 'bg-primary text-primary-foreground w-6 h-6 md:w-6 md:h-6 rounded-full' : 'text-foreground'}`}>
                                                 {dayInfo.day}
                                             </span>
                                         </div>
 
-                                        {/* Mobile Dots - Căn giữa ở dưới ngày */}
                                         <div className="md:hidden flex flex-wrap gap-1 justify-center mt-0.5 shrink-0 max-w-[90%]">
                                             {dayInfo.isHoliday && <div className="w-1.5 h-1.5 rounded-full bg-destructive"></div>}
                                             {dayInfo.leaves.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-sky-500"></div>}
@@ -554,7 +595,6 @@ export default function PersonalCalendarPage() {
                                             ))}
                                         </div>
 
-                                        {/* Desktop Content */}
                                         <div className="hidden md:flex flex-col gap-1 flex-1 h-full">
                                             {dayInfo.isHoliday && (
                                                 <div className="text-[10px] font-bold bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded text-center truncate shadow-sm shrink-0">
@@ -671,7 +711,14 @@ export default function PersonalCalendarPage() {
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="col-span-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">Từ ngày *</label>
-                                    <input type="date" required value={leaveForm.from_date} onChange={e => setLeaveForm({ ...leaveForm, from_date: e.target.value })} className="hrm-input h-11 px-3 bg-background text-foreground rounded-xl border border-border text-[12px] w-full uppercase font-mono shadow-sm" />
+                                    <input
+                                        type="date"
+                                        required
+                                        min={minDateAttr}
+                                        value={leaveForm.from_date}
+                                        onChange={e => setLeaveForm({ ...leaveForm, from_date: e.target.value })}
+                                        className="hrm-input h-11 px-3 bg-background text-foreground rounded-xl border border-border text-[12px] w-full uppercase font-mono shadow-sm"
+                                    />
                                 </div>
                                 <div>
                                     <label className="text-[10px] font-black uppercase tracking-widest text-transparent mb-1.5 block">.</label>
@@ -684,7 +731,14 @@ export default function PersonalCalendarPage() {
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="col-span-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">Đến ngày *</label>
-                                    <input type="date" required value={leaveForm.to_date} onChange={e => setLeaveForm({ ...leaveForm, to_date: e.target.value })} className="hrm-input h-11 px-3 bg-background text-foreground rounded-xl border border-border text-[12px] w-full uppercase font-mono shadow-sm" />
+                                    <input
+                                        type="date"
+                                        required
+                                        min={minDateAttr}
+                                        value={leaveForm.to_date}
+                                        onChange={e => setLeaveForm({ ...leaveForm, to_date: e.target.value })}
+                                        className="hrm-input h-11 px-3 bg-background text-foreground rounded-xl border border-border text-[12px] w-full uppercase font-mono shadow-sm"
+                                    />
                                 </div>
                                 <div>
                                     <label className="text-[10px] font-black uppercase tracking-widest text-transparent mb-1.5 block">.</label>
@@ -730,9 +784,10 @@ export default function PersonalCalendarPage() {
                             </div>
 
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">Ảnh đính kèm (Tùy chọn)</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">Ảnh đính kèm *</label>
                                 <div className="border border-dashed border-border rounded-xl p-2 bg-muted/10 hover:bg-muted/30 transition-colors mb-3">
-                                    <input type="file" accept="image/*" onChange={e => {
+                                    {/* BẮT BUỘC ẢNH Ở ĐÂY */}
+                                    <input type="file" accept="image/*" required onChange={e => {
                                         const f = e.target.files?.[0];
                                         setExplainForm({ ...explainForm, file: f || null });
                                         if (f) {
@@ -742,7 +797,14 @@ export default function PersonalCalendarPage() {
                                         } else setExplainPreview("");
                                     }} className="text-[12px] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer w-full" />
                                 </div>
-                                {explainPreview && <img src={explainPreview} alt="Preview" className="max-h-32 rounded-xl border border-border shadow-sm object-cover" />}
+                                {explainPreview ? (
+                                    <img src={explainPreview} alt="Preview" className="max-h-32 rounded-xl border border-border shadow-sm object-cover" />
+                                ) : (
+                                    <div className="h-32 w-full border border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground bg-muted/5">
+                                        <ImageIcon size={24} className="opacity-20 mb-2" />
+                                        <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">Chưa có ảnh minh chứng</span>
+                                    </div>
+                                )}
                             </div>
                         </form>
                     )}

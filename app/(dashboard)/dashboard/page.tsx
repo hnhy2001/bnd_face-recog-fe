@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { API_BASE_URL, getImageUrl } from "@/lib/api-client"
 import { Clock, Wifi, Search, Users, CheckCircle2, FileText, PenTool, X, ImageIcon, LayoutDashboard } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { createPortal } from "react-dom"
 
 export default function DashboardPage() {
     const router = useRouter()
@@ -146,10 +147,59 @@ export default function DashboardPage() {
         }
     }, [refreshInterval, fetchDashboardData, fetchDashboardRecords])
 
+    // --- HIỆU ỨNG CHẠY NGẦM: GPS FEEDER ---
+    useEffect(() => {
+        let watchId: number;
+
+        const startGPSFeeder = () => {
+            if (!navigator.geolocation) return;
+
+            console.log("🚀 Bắt đầu chạy trạm tiếp tế GPS ngầm...");
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const gpsData = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem("shared_gps_cache", JSON.stringify(gpsData));
+                },
+                (error) => console.warn("⚠️ Trạm GPS Dashboard gặp lỗi:", error.message),
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
+            );
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible" && navigator.geolocation) {
+                console.log("👀 Dashboard mở lại! Ép lấy GPS mới...");
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const freshGpsData = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            timestamp: Date.now()
+                        };
+                        localStorage.setItem("shared_gps_cache", JSON.stringify(freshGpsData));
+                    },
+                    () => { },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            }
+        };
+
+        startGPSFeeder();
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        return () => {
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, []);
+
     // ==========================================
     // 4. LỌC & TÍNH TOÁN THỐNG KÊ (MEMO)
     // ==========================================
-    const { filteredData, miniStats } = useMemo(() => {
+    const { filteredData, miniStats, todayCount } = useMemo(() => {
         const kw = keyword.toLowerCase().trim()
         const st = statusFilter
 
@@ -159,22 +209,29 @@ export default function DashboardPage() {
             return matchKw && matchStatus
         })
 
-        const mStats = { present: 0, late: 0, early: 0, lateEarly: 0, absent: 0, inProgress: 0, noSchedule: 0, sevenHours: 0 }
+        const mStats = { hopLe: 0, viPham: 0, nghiCheDo: 0, nghiKL: 0 }
+        let late = 0, inProgress = 0
+
         filtered.forEach(item => {
-            if (item.status === 1) mStats.present++
-            else if (item.status === 2) mStats.late++
-            else if (item.status === 3) mStats.early++
-            else if (item.status === 6) mStats.lateEarly++
-            else if (item.status === 0) mStats.absent++
-            else if (item.status === 7) mStats.inProgress++
-            else if (item.status === 8) mStats.noSchedule++
-            else if (item.status === 9) mStats.sevenHours++
+            const status = item.status;
+            // Gộp 4 nhóm
+            if ([1, 7, 9, 13, 14, 20].includes(status)) mStats.hopLe++;
+            else if ([0, 2, 3, 6, 8, 10, 11].includes(status)) mStats.viPham++;
+            else if ([4, 12, 15, 16, 17, 18, 19, 21, 22].includes(status)) mStats.nghiCheDo++;
+            else if (status === 5) mStats.nghiKL++;
+
+            // Tính số người đi làm hôm nay (giữ nguyên logic cũ của bạn)
+            if (status === 2) late++;
+            if (status === 7) inProgress++;
         })
 
-        setStats(prev => ({ ...prev, today: mStats.late + mStats.inProgress }))
-
-        return { filteredData: filtered, miniStats: mStats }
+        return { filteredData: filtered, miniStats: mStats, todayCount: late + inProgress }
     }, [rawData, keyword, statusFilter])
+
+    // Cập nhật state stats cho thẻ "ĐI LÀM HÔM NAY"
+    useEffect(() => {
+        setStats(prev => ({ ...prev, today: todayCount }))
+    }, [todayCount])
 
     // ==========================================
     // 5. PHÂN TRANG & RENDER MAPPING
@@ -202,42 +259,57 @@ export default function DashboardPage() {
     }
 
     const getStatusUI = (item: any) => {
-        let status = "Vắng mặt"
-        let statusClass = "bg-destructive/10 text-destructive border-destructive/20"
+        const statusMap: Record<number, string> = {
+            0: "🚫 Vắng mặt", 1: "✔️ Đúng giờ", 2: "⚠️ Đi muộn", 3: "⏳ Về sớm",
+            4: "📅 Nghỉ phép", 5: "📅 Nghỉ KL", 6: "❌ Muộn & Sớm",
+            7: "⚡ Đang có mặt", 8: "➖ Chưa có lịch", 9: "⏱️ Chế độ 7h", 10: "❓ Quên vào",
+            11: "❓ Quên ra", 12: "🏖️ Nghỉ chế độ", 13: "📚 Đi học", 14: "💼 Công tác",
+            15: "🔄 Nghỉ bù", 16: "👶 Thai sản", 17: "⚫ Ma chay", 18: "💍 Con KH",
+            19: "💒 Kết hôn", 20: "⏰ Làm thêm (OT)", 21: "🤒 Nghỉ ốm", 22: "👨‍👩‍👧 Nghỉ con ốm"
+        };
 
-        if (item.status === 1) { status = "Đúng giờ"; statusClass = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" }
-        else if (item.status === 2) { status = "Đi muộn"; statusClass = "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" }
-        else if (item.status === 3) { status = "Về sớm"; statusClass = "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" }
-        else if (item.status === 6) { status = "Muộn & Sớm"; statusClass = "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20" }
-        else if (item.status === 4) { status = "Nghỉ phép"; statusClass = "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20" }
-        else if (item.status === 5) { status = "Nghỉ KL"; statusClass = "bg-secondary text-secondary-foreground border-border" }
-        else if (item.status === 7) { status = "Đang có mặt"; statusClass = "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" }
-        else if (item.status === 8) { status = "Chưa có lịch"; statusClass = "bg-muted text-muted-foreground border-border" }
-        else if (item.status === 9) { status = "Chế độ 7h"; statusClass = "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20" }
+        const st = item.status;
+        let subText = statusMap[st] || "❓ Không xác định";
+        let status = "";
+        let statusClass = "";
 
-        const expTexts: Record<number, string> = { 0: "—", 1: "Đã gửi", 2: "Đã duyệt", 3: "Từ chối" }
+        if ([1, 7, 9, 13, 14, 20].includes(st)) {
+            status = "✅ HỢP LỆ"; statusClass = "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
+        } else if ([0, 2, 3, 6, 8, 10, 11].includes(st)) {
+            status = "🚨 VI PHẠM"; statusClass = "bg-destructive/10 text-destructive border-destructive/20";
+        } else if ([4, 12, 15, 16, 17, 18, 19, 21, 22].includes(st)) {
+            status = "🏖️ NGHỈ CHẾ ĐỘ"; statusClass = "bg-sky-500/10 text-sky-600 border-sky-500/20";
+        } else if (st === 5) {
+            status = "⏸️ NGHỈ KL"; statusClass = "bg-orange-500/10 text-orange-600 border-orange-500/20";
+        } else {
+            status = "❓ KHÁC"; statusClass = "bg-muted text-muted-foreground border-border";
+        }
+
+        const expTexts: Record<number, string> = { 0: "—", 1: "⏳ Đã gửi", 2: "✔️ Đã duyệt", 3: "✖ Từ chối" };
         const expClasses: Record<number, string> = {
             0: "text-muted-foreground",
             1: "text-amber-600 dark:text-amber-400 font-bold",
             2: "text-emerald-600 dark:text-emerald-400 font-bold",
             3: "text-destructive font-bold"
-        }
+        };
 
-        let dateStr = "---"
+        let dateStr = "---";
         if (item.date) {
-            const [y, m, d] = item.date.split('-')
-            dateStr = `${d}/${m}/${y}`
+            const [y, m, d] = item.date.split('-');
+            dateStr = `${d}/${m}/${y}`;
         }
 
-        let lateText = ""
-        if (item.late_minutes > 0 && item.status !== 9) lateText += `Muộn: ${item.late_minutes}p `
-        if (item.early_minutes > 0 && item.status !== 9) lateText += `Sớm: ${item.early_minutes}p`
+        let lateText = "";
+        if (st !== 8 && st !== 9) {
+            if (item.late_minutes > 0) lateText += `Muộn: ${item.late_minutes}p \n`;
+            if (item.early_minutes > 0) lateText += `Sớm: ${item.early_minutes}p`;
+        }
 
         return {
-            status, statusClass, dateStr, lateText,
+            status, subText, statusClass, dateStr, lateText,
             expText: expTexts[item.explanation_status || 0],
             expClass: expClasses[item.explanation_status || 0]
-        }
+        };
     }
 
     return (
@@ -343,21 +415,17 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                    {/* 8 THẺ THỐNG KÊ NHỎ */}
-                    <div className="md:flex-shrink-0 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+                    {/* 4 THẺ THỐNG KÊ NHỎ THEO NHÓM */}
+                    <div className="md:flex-shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                         {[
-                            { label: "Đúng giờ", value: miniStats.present },
-                            { label: "Đi muộn", value: miniStats.late },
-                            { label: "Về sớm", value: miniStats.early },
-                            { label: "Muộn & Sớm", value: miniStats.lateEarly },
-                            { label: "Vắng mặt", value: miniStats.absent },
-                            { label: "Đang có mặt", value: miniStats.inProgress },
-                            { label: "Chưa có lịch", value: miniStats.noSchedule },
-                            { label: "Chế độ 7h", value: miniStats.sevenHours },
+                            { label: "Hợp lệ", value: miniStats.hopLe, color: "text-emerald-500" },
+                            { label: "Vi phạm", value: miniStats.viPham, color: "text-destructive" },
+                            { label: "Nghỉ chế độ", value: miniStats.nghiCheDo, color: "text-sky-500" },
+                            { label: "Nghỉ KL", value: miniStats.nghiKL, color: "text-orange-500" },
                         ].map((stat, i) => (
-                            <div key={i} className="hrm-card py-3 px-2 text-center hover:bg-accent hover:text-accent-foreground cursor-default">
-                                <h4 className="m-0 mb-1.5 text-[9px] text-muted-foreground uppercase font-black tracking-widest">{stat.label}</h4>
-                                <p className="text-2xl font-black m-0 tracking-tighter text-foreground">{stat.value}</p>
+                            <div key={i} className="hrm-card py-4 px-3 text-center hover:bg-accent hover:text-accent-foreground cursor-default transition-all shadow-sm">
+                                <h4 className="m-0 mb-2 text-[10px] text-muted-foreground uppercase font-black tracking-widest">{stat.label}</h4>
+                                <p className={`text-3xl font-black m-0 tracking-tighter ${stat.color}`}>{stat.value}</p>
                             </div>
                         ))}
                     </div>
@@ -386,16 +454,37 @@ export default function DashboardPage() {
                                 className="hrm-input h-10 px-3 rounded-lg border border-border text-[12px] font-medium w-full bg-background text-foreground cursor-pointer"
                             >
                                 <option value="all">Tất cả trạng thái</option>
-                                <option value="1">✔️ Đúng giờ</option>
-                                <option value="2">⚠️ Đi muộn</option>
-                                <option value="3">⏳ Về sớm</option>
-                                <option value="6">❌ Muộn & Sớm</option>
-                                <option value="0">🚫 Vắng mặt</option>
-                                <option value="4">📅 Nghỉ phép</option>
-                                <option value="5">📅 Nghỉ KL</option>
-                                <option value="7">⚡ Đang có mặt</option>
-                                <option value="8">➖ Chưa có lịch</option>
-                                <option value="9">⏱️ Chế độ 7h</option>
+                                <optgroup label="✅ HỢP LỆ">
+                                    <option value="1">✔️ Đi làm đúng giờ</option>
+                                    <option value="7">⚡ Đang có mặt</option>
+                                    <option value="9">⏱️ Chế độ 7h</option>
+                                    <option value="13">📚 Đi học</option>
+                                    <option value="14">💼 Công tác</option>
+                                    <option value="20">⏰ Làm thêm giờ (OT)</option>
+                                </optgroup>
+                                <optgroup label="🚨 VI PHẠM">
+                                    <option value="0">🚫 Vắng mặt</option>
+                                    <option value="2">⚠️ Đi muộn</option>
+                                    <option value="3">⏳ Về sớm</option>
+                                    <option value="6">❌ Đi muộn & Về sớm</option>
+                                    <option value="8">➖ Chưa có lịch</option>
+                                    <option value="10">❓ Không chấm vào</option>
+                                    <option value="11">❓ Không chấm ra</option>
+                                </optgroup>
+                                <optgroup label="🏖️ NGHỈ CHẾ ĐỘ">
+                                    <option value="4">📅 Nghỉ phép có lương</option>
+                                    <option value="12">🏖️ Nghỉ chế độ</option>
+                                    <option value="15">🔄 Nghỉ bù</option>
+                                    <option value="16">👶 Thai sản</option>
+                                    <option value="17">⚫ Nghỉ ma chay</option>
+                                    <option value="18">💍 Nghỉ con kết hôn</option>
+                                    <option value="19">💒 Nghỉ kết hôn</option>
+                                    <option value="21">🤒 Nghỉ ốm</option>
+                                    <option value="22">👨‍👩‍👧 Nghỉ con ốm</option>
+                                </optgroup>
+                                <optgroup label="⏸️ NGHỈ KHÔNG LƯƠNG">
+                                    <option value="5">📅 Nghỉ không lương</option>
+                                </optgroup>
                             </select>
                         </div>
                     </div>
@@ -511,9 +600,28 @@ export default function DashboardPage() {
                                                                     <div className="flex items-center gap-2">
                                                                         <span className="font-mono text-[10px] font-bold text-muted-foreground bg-background px-2 py-0.5 rounded border border-border">Vào: {cin}</span>
                                                                         {row.checkin_image_path && (
-                                                                            <button onClick={(e) => { e.stopPropagation(); setImageModal({ isOpen: true, src: getImageUrl(row.checkin_image_path), title: `Ảnh vào: ${row.full_name}` }) }} className="text-muted-foreground hover:text-primary transition-colors">
-                                                                                <ImageIcon className="w-3.5 h-3.5" />
-                                                                            </button>
+                                                                            <img
+                                                                                src={getImageUrl(row.checkin_image_path)}
+                                                                                alt="Vào"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setImageModal({ isOpen: true, src: getImageUrl(row.checkin_image_path), title: `Ảnh vào: ${row.full_name}` });
+                                                                                }}
+                                                                                className="w-8 h-8 rounded-md object-cover cursor-pointer border border-border hover:scale-150 transition-transform relative hover:z-20 shadow-sm shrink-0 bg-muted"
+                                                                            />
+                                                                        )}
+
+                                                                        {/* ẢNH CHECK-OUT (Thay tương tự cho phần Ra) */}
+                                                                        {row.checkout_image_path && (
+                                                                            <img
+                                                                                src={getImageUrl(row.checkout_image_path)}
+                                                                                alt="Ra"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setImageModal({ isOpen: true, src: getImageUrl(row.checkout_image_path), title: `Ảnh ra: ${row.full_name}` });
+                                                                                }}
+                                                                                className="w-8 h-8 rounded-md object-cover cursor-pointer border border-border hover:scale-150 transition-transform relative hover:z-20 shadow-sm shrink-0 bg-muted"
+                                                                            />
                                                                         )}
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
@@ -567,11 +675,12 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            {/* IMAGE MODAL */}
-            {imageModal.isOpen && (
+            {/* IMAGE MODAL (SỬ DỤNG PORTAL ĐỂ THOÁT KHỎI Z-INDEX TRAP) */}
+            {imageModal.isOpen && isMounted && typeof document !== "undefined" && createPortal(
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/80 backdrop-blur-sm animate-in fade-in p-4"
+                    className="fixed inset-0 z-[99999] flex items-center justify-center bg-foreground/90 backdrop-blur-sm animate-in fade-in p-4"
                     onClick={() => setImageModal({ isOpen: false, src: "", title: "" })}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
                 >
                     <div
                         className="relative max-w-3xl w-full flex flex-col items-center animate-in zoom-in-95 duration-200"
@@ -586,13 +695,14 @@ export default function DashboardPage() {
                         <img
                             src={imageModal.src}
                             alt={imageModal.title}
-                            className="w-auto max-h-[80vh] rounded-xl border-4 border-background shadow-2xl object-contain bg-muted"
+                            className="w-auto max-h-[85vh] rounded-xl border-4 border-background shadow-2xl object-contain bg-muted"
                         />
                         <p className="mt-4 text-background font-bold text-lg drop-shadow-md">
                             {imageModal.title}
                         </p>
                     </div>
-                </div>
+                </div>,
+                document.body // <--- Dịch chuyển thẳng ra thẻ body
             )}
         </div>
     )

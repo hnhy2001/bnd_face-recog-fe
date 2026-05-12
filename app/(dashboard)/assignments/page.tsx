@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { API_BASE_URL } from "@/lib/api-client";
 import {
     Download, Upload, FolderOpen, ChevronLeft, ChevronRight,
@@ -65,7 +66,12 @@ export default function AssignmentPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalData, setModalData] = useState<{ empId: number; name: string; date: string } | null>(null);
     const [selectedShiftCodes, setSelectedShiftCodes] = useState<string[]>([]);
-
+    const [isMounted, setIsMounted] = useState(false);
+    const [isImportShiftModalOpen, setIsImportShiftModalOpen] = useState(false);
+    const [importShiftCode, setImportShiftCode] = useState("");
+    const [importShiftFile, setImportShiftFile] = useState<File | null>(null);
+    const [isSubmittingImportShift, setIsSubmittingImportShift] = useState(false);
+    useEffect(() => { setIsMounted(true); }, []);
     useEffect(() => {
         const today = new Date();
         const dayOfWeek = today.getDay();
@@ -251,6 +257,37 @@ export default function AssignmentPage() {
         }
     };
 
+    const handleImportByShift = async () => {
+        if (!importShiftCode) { alert("Vui lòng chọn ca trực!"); return; }
+        if (!importShiftFile) { alert("Vui lòng chọn file Excel!"); return; }
+
+        const formData = new FormData();
+        formData.append("shift_code", importShiftCode);
+        formData.append("file", importShiftFile);
+
+        setIsSubmittingImportShift(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/import-excel-assignment`, {
+                method: "POST",
+                headers: { "Authorization": getAuthHeaders().Authorization }, // Không set Content-Type để form-data tự xử lý
+                body: formData
+            });
+            const result = await res.json();
+            if (res.ok) {
+                alert(result.message || "Nhập lịch thành công!");
+                setIsImportShiftModalOpen(false);
+                setImportShiftFile(null);
+                fetchAssignments();
+            } else {
+                alert("Lỗi: " + (result.detail || "Thất bại"));
+            }
+        } catch (e) {
+            alert("Lỗi kết nối server!");
+        } finally {
+            setIsSubmittingImportShift(false);
+        }
+    };
+
     return (
         <div className="w-full flex-1 flex flex-col h-full min-h-0 animate-in fade-in duration-500 relative text-foreground font-sans">
 
@@ -294,6 +331,19 @@ export default function AssignmentPage() {
                         {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload size={16} />}
                         Upload
                     </button>
+
+                    {userRole === "admin" && (
+                        <button
+                            onClick={() => {
+                                setImportShiftCode("");
+                                setImportShiftFile(null);
+                                setIsImportShiftModalOpen(true);
+                            }}
+                            className="flex-1 md:flex-none h-10 bg-purple-600 text-white px-4 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-purple-700 shadow-sm transition-all"
+                        >
+                            <FolderOpen size={16} /> Nhập theo ca
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -509,9 +559,9 @@ export default function AssignmentPage() {
                 </div>
             </div>
 
-            {/* MODAL (GIỮ NGUYÊN) */}
-            {isModalOpen && modalData && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            {/* 1. MODAL PHÂN CÔNG THỦ CÔNG */}
+            {isModalOpen && modalData && isMounted && typeof document !== "undefined" && createPortal(
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
                     <div className="bg-card border border-border shadow-2xl rounded-2xl w-full max-w-md overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
                         <div className="p-5 border-b border-border flex items-center justify-between">
                             <h3 className="text-[13px] font-black uppercase tracking-widest text-foreground m-0">Phân công trực</h3>
@@ -532,12 +582,14 @@ export default function AssignmentPage() {
                                         <div
                                             key={s.shift_code}
                                             onClick={() => !isLocked && setSelectedShiftCodes(prev => prev.includes(s.shift_code) ? prev.filter(c => c !== s.shift_code) : [...prev, s.shift_code])}
+                                            title={isLocked ? "Chỉ Admin mới được phân ca trực này" : ""}
                                             className={`relative p-3 border-2 rounded-xl text-center transition-all cursor-pointer flex flex-col items-center justify-center min-h-[70px]
                                             ${isSelected ? "border-primary bg-primary/5 scale-[0.98]" : "border-border hover:border-primary/40"} 
-                                            ${isLocked ? "opacity-40 cursor-not-allowed bg-muted" : ""}`}
+                                            ${isLocked ? "opacity-50 cursor-not-allowed bg-muted" : ""}`}
                                         >
-                                            {isSelected && <div className="absolute top-2 right-2 bg-primary rounded-full p-0.5"><Check className="w-3 h-3 text-white" /></div>}
-                                            <div className={`font-black text-[15px] leading-none mb-1 ${isSelected ? "text-primary" : ""}`}>{s.shift_code}</div>
+                                            {isLocked && <div className="absolute top-2 right-2"><Lock className="w-3 h-3 text-muted-foreground" /></div>}
+                                            {!isLocked && isSelected && <div className="absolute top-2 right-2 bg-primary rounded-full p-0.5"><Check className="w-3 h-3 text-white" /></div>}
+                                            <div className={`font-black text-[15px] leading-none mb-1 ${isSelected ? "text-primary" : (isLocked ? "text-muted-foreground" : "")}`}>{s.shift_code}</div>
                                             <div className="text-[9px] text-muted-foreground uppercase font-black truncate w-full">{s.shift_name}</div>
                                         </div>
                                     );
@@ -549,7 +601,57 @@ export default function AssignmentPage() {
                             <button onClick={handleSave} className="flex-1 h-11 bg-primary text-primary-foreground font-black uppercase tracking-widest text-[11px] rounded-xl shadow-md hover:opacity-90 transition-opacity">Lưu thay đổi</button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
+            )}
+
+            {/* 2. MODAL NHẬP THEO CA (ADMIN ONLY) */}
+            {isImportShiftModalOpen && isMounted && typeof document !== "undefined" && createPortal(
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+                    <div className="bg-card border-t-4 border-t-purple-600 shadow-2xl rounded-2xl w-full max-w-md overflow-hidden flex flex-col animate-in slide-in-from-bottom-4">
+                        <div className="p-5 border-b border-border">
+                            <h3 className="text-[14px] font-black uppercase tracking-widest text-foreground m-0 flex items-center gap-2">
+                                <FolderOpen className="text-purple-600" size={18} /> Nhập Excel theo Ca
+                            </h3>
+                        </div>
+                        <div className="p-5 flex flex-col gap-4">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">Chọn ca trực sẽ gán <span className="text-destructive">*</span></label>
+                                <select
+                                    value={importShiftCode}
+                                    onChange={e => setImportShiftCode(e.target.value)}
+                                    className="hrm-input h-11 px-3 bg-background text-foreground rounded-lg border border-border text-[13px] font-bold w-full outline-none"
+                                >
+                                    <option value="">-- Chọn ca trực --</option>
+                                    {shiftCategories.map(s => (
+                                        <option key={s.shift_code} value={s.shift_code}>{s.shift_name} ({s.shift_code})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1.5 block">File Excel (.xlsx) <span className="text-destructive">*</span></label>
+                                <input
+                                    type="file"
+                                    accept=".xlsx, .xls"
+                                    onChange={e => setImportShiftFile(e.target.files?.[0] || null)}
+                                    className="w-full text-[12px] p-2 border-2 border-dashed border-border rounded-lg bg-muted/30 cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-[11px] file:font-black file:uppercase file:tracking-widest file:bg-purple-600 file:text-white hover:file:bg-purple-700"
+                                />
+                                <p className="text-[10px] text-muted-foreground mt-2 italic">* Dữ liệu nhân sự sẽ được quét từ dòng số 8 của file mẫu.</p>
+                            </div>
+                        </div>
+                        <div className="p-5 border-t border-border flex gap-3 bg-muted/20">
+                            <button onClick={() => setIsImportShiftModalOpen(false)} className="flex-1 h-11 bg-background text-foreground font-bold uppercase tracking-widest text-[11px] rounded-xl border border-border hover:bg-muted transition-colors">Đóng</button>
+                            <button
+                                onClick={handleImportByShift}
+                                disabled={isSubmittingImportShift || !importShiftCode || !importShiftFile}
+                                className="flex-1 h-11 bg-purple-600 text-white font-black uppercase tracking-widest text-[11px] rounded-xl shadow-md hover:bg-purple-700 disabled:opacity-50 transition-colors flex justify-center items-center gap-2"
+                            >
+                                {isSubmittingImportShift ? <Loader2 className="w-4 h-4 animate-spin" /> : "Thực hiện"}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
         </div>
     );
